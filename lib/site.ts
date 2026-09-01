@@ -162,7 +162,12 @@ export type Member = {
   role: string;
   detail: string;
   skills: string[];
-  /** Optional portrait — drop a 3:4 JPG here and it replaces the placeholder. */
+  /**
+   * Optional portrait. Empty until a real one exists: the wall panel is a
+   * finished exhibit without it, and a path to a file that is not there only
+   * buys a 404 on every visit. Drop a 3:4 JPG into /public/team and set
+   * `photo: asset("/team/<slug>.jpg")` to hang it.
+   */
   photo: string;
   accent: "teal" | "violet";
 };
@@ -187,7 +192,7 @@ export const MEMBERS: Member[] = [
       "Cloud, CI/CD & Betrieb",
       "Desktop-, Mobile- & Bot-Apps",
     ],
-    photo: asset("/team/anwendungsentwicklung.jpg"),
+    photo: "",
     accent: "teal",
   },
   {
@@ -203,7 +208,7 @@ export const MEMBERS: Member[] = [
       "Unreal / Unity",
       "Motion & Look-Development",
     ],
-    photo: asset("/team/technical-art.jpg"),
+    photo: "",
     accent: "violet",
   },
 ];
