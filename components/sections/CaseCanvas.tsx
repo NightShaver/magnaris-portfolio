@@ -73,7 +73,15 @@ const fragmentShader = /* glsl */ `
     vec2 uv = vUv;
 
     float n = noise(uv * 6.0 + uTime * 0.12);
-    float mask = smoothstep(uProgress - 0.35, uProgress + 0.35, uv.x + n * 0.3);
+
+    // The wipe has to leave the frame at both ends. What is compared against
+    // the band is uv.x + n * 0.3, so it runs to 1.3, not to 1.0, and the band
+    // itself is 0.7 wide — a raw uProgress would come to rest mid-sweep and
+    // leave the right edge holding a share of the previous plate for as long
+    // as it is on screen. Remapped, the band starts before the first pixel and
+    // ends past the last one.
+    float sweep = uProgress * 2.2 - 0.4;
+    float mask = smoothstep(sweep - 0.35, sweep + 0.35, uv.x + n * 0.3);
 
     // Displacement peaks mid-transition, so the swap tears rather than fades.
     float push = (1.0 - abs(uProgress * 2.0 - 1.0)) * 0.09;
