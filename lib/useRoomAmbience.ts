@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
+import { asset } from "@/lib/assetPath";
+
 /* ==========================================================================
    ROOM AMBIENCE
    --------------------------------------------------------------------------
@@ -30,7 +32,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
  * number is the track id, which is what makes the licence provable later.
  * See public/audio/README.md.
  */
-const TRACK_SRC = "/audio/atlasaudio-ambient-574024.mp3";
+const TRACK_SRC = asset("/audio/atlasaudio-ambient-574024.mp3");
 
 /**
  * Ceiling of the element volume, reached when the visitor's own level sits at

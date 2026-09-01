@@ -155,6 +155,26 @@ Die erste Fassung hatte eine invertierte Box *und* separate Boden- und
 Deckenflächen an derselben Stelle — zwei koplanare Faces in identischer Tiefe
 sind genau das, was einen Raum flackern lässt.
 
+## Deployment
+
+Die Seite hat keine Serverseite: keine Route Handler, keine Server Actions,
+alle Routen sind vorgerendert. Deshalb `output: "export"` — `npm run build`
+schreibt ein statisches `out/`, das jeder Filehoster ausliefern kann.
+
+GitHub Pages passiert automatisch: `.github/workflows/deploy.yml` baut bei
+jedem Push auf `main` und veröffentlicht `out/`. Einmalig muss in den
+Repository-Einstellungen unter *Pages* als Source **GitHub Actions** gewählt
+sein.
+
+Ein GitHub-Projektsite liegt unter `/<repo>/`, nicht auf der Root. Der
+Workflow setzt dafür `NEXT_PUBLIC_BASE_PATH`; Next präfixt damit seine
+eigenen URLs, und alles, was als String an `new Audio()` oder einen
+Texture-Loader geht, läuft über `asset()` aus `lib/assetPath.ts`. Lokal ist
+die Variable leer, die Pfade bleiben also unverändert.
+
+Für ein Deployment auf eigener Domain (Vercel, Netlify, statischer Server) die
+Variable einfach weglassen.
+
 ## Offene Punkte
 - Walkable Room: GLTF-Environment statt gebauter Geometrie, echte Kollision
   (three-mesh-bvh oder Rapier), Video-Texturen auf den Exponaten,

@@ -1,3 +1,5 @@
+import { asset } from "@/lib/assetPath";
+
 export const BRAND = {
   name: "Magnaris",
   discipline: "WEB / 3D / SOFTWARE",
@@ -113,7 +115,7 @@ export const CASES: CaseStudy[] = [
     year: "2025",
     url: "https://carbo-boosting.com/",
     disciplines: ["WEB", "SYSTEM"],
-    image: "/cases/carbo-boosting.jpg",
+    image: asset("/cases/carbo-boosting.jpg"),
   },
   {
     index: "02",
@@ -122,7 +124,7 @@ export const CASES: CaseStudy[] = [
     year: "2025",
     url: "https://nightshaver.github.io/Schuemmers/",
     disciplines: ["WEB"],
-    image: "/cases/schuemmers.jpg",
+    image: asset("/cases/schuemmers.jpg"),
   },
   {
     index: "03",
@@ -131,7 +133,7 @@ export const CASES: CaseStudy[] = [
     year: "2025",
     url: "https://sheepz-cmd.github.io/wiedemann-redesign-demo/",
     disciplines: ["WEB", "UX"],
-    image: "/cases/wiedemann.jpg",
+    image: asset("/cases/wiedemann.jpg"),
   },
   {
     index: "04",
@@ -140,7 +142,7 @@ export const CASES: CaseStudy[] = [
     year: "2024",
     url: "https://www.fahrradladen-im-zimmerhof.de/",
     disciplines: ["WEB", "RUN"],
-    image: "/cases/zimmerhof.jpg",
+    image: asset("/cases/zimmerhof.jpg"),
   },
   {
     index: "05",
@@ -149,7 +151,7 @@ export const CASES: CaseStudy[] = [
     year: "2025",
     url: "https://nightshaver.github.io/Eefelkank-demo-seite/",
     disciplines: ["WEB", "SPACE"],
-    image: "/cases/eefelkank.jpg",
+    image: asset("/cases/eefelkank.jpg"),
   },
 ];
 
@@ -185,7 +187,7 @@ export const MEMBERS: Member[] = [
       "Cloud, CI/CD & Betrieb",
       "Desktop-, Mobile- & Bot-Apps",
     ],
-    photo: "/team/anwendungsentwicklung.jpg",
+    photo: asset("/team/anwendungsentwicklung.jpg"),
     accent: "teal",
   },
   {
@@ -201,7 +203,7 @@ export const MEMBERS: Member[] = [
       "Unreal / Unity",
       "Motion & Look-Development",
     ],
-    photo: "/team/technical-art.jpg",
+    photo: asset("/team/technical-art.jpg"),
     accent: "violet",
   },
 ];
