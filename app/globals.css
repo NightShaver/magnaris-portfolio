@@ -1,0 +1,181 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------
+   MAGNARIS DESIGN TOKENS
+   Tailwind v4 CSS-first config. Every token below becomes a utility,
+   e.g. --color-ink -> bg-ink / text-ink / border-ink.
+   ------------------------------------------------------------------ */
+@theme {
+  /* Brandboard — exact HEX values, do not approximate. */
+  --color-ink: #111723;
+  --color-teal: #0f8e91;
+  --color-violet: #6f63c7;
+  --color-steel: #8d98a6;
+  --color-frost: #f3f6f8;
+
+  /* Derived surfaces. Kept as explicit tokens so dark sections stay
+     consistent instead of drifting into ad-hoc opacity values. */
+  --color-ink-900: #0b0f18;
+  --color-ink-800: #161d2b;
+  --color-ink-700: #1d2636;
+  --color-line: #253044;
+
+  /* Typography */
+  --font-display: var(--font-inter-display), "Inter", system-ui, sans-serif;
+  --font-mono: var(--font-go-mono), ui-monospace, "SFMono-Regular", monospace;
+  --font-accent: var(--font-gillius), var(--font-inter-display), sans-serif;
+
+  /* Motion — one easing curve for the whole site keeps it feeling authored. */
+  --ease-brand: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-swift: cubic-bezier(0.32, 0.72, 0, 1);
+
+  /* Editorial type scale (clamped, fluid) */
+  --text-display: clamp(3rem, 9.5vw, 11rem);
+  --text-display--line-height: 0.88;
+  --text-display--letter-spacing: -0.045em;
+  --text-headline: clamp(2rem, 4.6vw, 4.5rem);
+  --text-headline--line-height: 0.98;
+  --text-headline--letter-spacing: -0.035em;
+  --text-tag: 0.6875rem;
+  --text-tag--line-height: 1;
+  --text-tag--letter-spacing: 0.18em;
+}
+
+@layer base {
+  :root {
+    color-scheme: dark;
+  }
+
+  * {
+    border-color: var(--color-line);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-ink);
+    color: var(--color-frost);
+    font-family: var(--font-display);
+    font-feature-settings: "ss01", "cv05", "cv11";
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+    overscroll-behavior-y: none;
+  }
+
+  ::selection {
+    background-color: var(--color-teal);
+    color: var(--color-ink);
+  }
+
+  /* Native scrollbar stays out of the way — Lenis drives the motion. */
+  ::-webkit-scrollbar {
+    width: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: var(--color-ink-900);
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-ink-700);
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-teal);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-teal);
+    outline-offset: 3px;
+  }
+}
+
+@layer components {
+  /* Uppercase technical label — Go Mono, used for tags, indices, meta. */
+  .tag {
+    font-family: var(--font-mono);
+    font-size: var(--text-tag);
+    line-height: 1;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-steel);
+  }
+
+  /* Brand gradient text: teal -> violet, the only gradient we allow. */
+  .gradient-text {
+    background-image: linear-gradient(
+      100deg,
+      var(--color-teal) 0%,
+      var(--color-violet) 100%
+    );
+    background-clip: text;
+    color: transparent;
+  }
+
+  /* Line-mask wrapper for text reveals (child translates from below). */
+  .mask-line {
+    display: block;
+    overflow: hidden;
+    padding-bottom: 0.06em;
+  }
+
+  /* Hairline grid lines used across sections for the technical feel. */
+  .rule {
+    height: 1px;
+    width: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      var(--color-line) 12%,
+      var(--color-line) 88%,
+      transparent
+    );
+  }
+}
+
+@layer utilities {
+  .grain {
+    position: fixed;
+    inset: 0;
+    z-index: 60;
+    pointer-events: none;
+    opacity: 0.035;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  }
+
+  .marquee {
+    animation: marquee 38s linear infinite;
+  }
+
+  @keyframes marquee {
+    from {
+      transform: translate3d(0, 0, 0);
+    }
+    to {
+      transform: translate3d(-50%, 0, 0);
+    }
+  }
+
+  .grid-lines {
+    background-image: linear-gradient(
+        to right,
+        var(--color-line) 1px,
+        transparent 1px
+      ),
+      linear-gradient(to bottom, var(--color-line) 1px, transparent 1px);
+    background-size: 96px 96px;
+  }
+}
+
+/* Respect the OS setting. Every animated component also checks this in JS. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+    scroll-behavior: auto !important;
+  }
+}
