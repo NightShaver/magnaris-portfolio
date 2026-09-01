@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 1024 1024">
+  <!--
+    Browser-tab mark. Same geometry as /public/logo/magnaris-*.svg, but the
+    generous logo padding is taken out: at 16 pixels every unused margin costs
+    legibility. The mark is scaled to fill 78% of the square and centred on its
+    own bounding box, not on the artboard the full logo uses.
+  -->
+  <rect width="1024" height="1024" fill="#111723"/>
+  <g transform="translate(-8 77) scale(1.733)">
+    <polygon points="75,430 75,100 165,100 260,195 205,250 165,210 165,355" fill="#F3F6F8"/>
+    <polygon points="435,430 435,200 525,110 525,430" fill="#F3F6F8"/>
+    <polygon points="205,390 205,282 294,202 294,314" fill="#6F63C7"/>
+    <polygon points="230,306 465,72 300,324 205,390" fill="#0F8E91"/>
+  </g>
+</svg>
