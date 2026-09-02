@@ -7,6 +7,7 @@ import * as THREE from "three";
 
 import { HeroScene } from "./HeroScene";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
+import { useLowPower } from "@/lib/useLowPower";
 
 /**
  * Hero canvas shell.
@@ -19,6 +20,7 @@ export function HeroCanvas() {
   const wrapper = useRef<HTMLDivElement>(null);
   const pointer = useRef<THREE.Vector2>(new THREE.Vector2(0, 0));
   const reducedMotion = usePrefersReducedMotion();
+  const lowPower = useLowPower();
 
   const [supported, setSupported] = useState<boolean | null>(null);
   const [visible, setVisible] = useState(true);
@@ -104,7 +106,10 @@ export function HeroCanvas() {
       {supported && (
         <Canvas
           className="!absolute inset-0"
-          dpr={[1, 1.75]}
+          // A phone's device pixel ratio is 3: rendering at 1.75 means
+          // shading three times the fragments a desktop does, for a canvas
+          // nobody inspects that closely.
+          dpr={lowPower ? [1, 1.25] : [1, 1.75]}
           gl={glSettings}
           frameloop={visible && !reducedMotion ? "always" : "demand"}
           camera={{ position: [0, 0.1, 5.6], fov: 34, near: 0.1, far: 40 }}
@@ -115,7 +120,11 @@ export function HeroCanvas() {
           }}
         >
           <Suspense fallback={null}>
-            <HeroScene pointer={pointer} reducedMotion={reducedMotion} />
+            <HeroScene
+              pointer={pointer}
+              reducedMotion={reducedMotion}
+              lowPower={lowPower}
+            />
             <Preload all />
           </Suspense>
         </Canvas>

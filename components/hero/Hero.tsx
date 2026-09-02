@@ -54,7 +54,10 @@ export function Hero() {
       {/* Ambient brand glow behind the whole hero. */}
       <div
         aria-hidden
-        className="pointer-events-none absolute -top-40 left-1/2 h-[70vh] w-[90vw] -translate-x-1/2 rounded-full opacity-30 blur-[140px]"
+        // A 140px blur over 90vw x 70vh is a full-screen offscreen buffer at
+        // three times the pixels on a phone. The gradient is already soft, so
+        // the wide radius only earns its keep on a desktop.
+        className="pointer-events-none absolute -top-40 left-1/2 h-[70vh] w-[90vw] -translate-x-1/2 rounded-full opacity-30 blur-3xl md:blur-[140px]"
         style={{
           background:
             "radial-gradient(45% 55% at 30% 40%, #0f8e91 0%, transparent 70%), radial-gradient(45% 55% at 70% 60%, #6f63c7 0%, transparent 70%)",

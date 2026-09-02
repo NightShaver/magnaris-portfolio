@@ -52,7 +52,10 @@ export function SiteHeader() {
         className={[
           "mx-auto flex items-center justify-between gap-6 px-6 transition-all duration-500 md:px-10",
           condensed
-            ? "h-14 border-b border-line/70 bg-ink/70 backdrop-blur-xl"
+            // backdrop-filter re-samples everything behind the bar on every
+            // scrolled frame. Phones get an opaque bar instead, which looks
+            // near-identical over this palette and costs nothing.
+            ? "h-14 border-b border-line/70 bg-ink/95 md:bg-ink/70 md:backdrop-blur-xl"
             : "h-20 border-b border-transparent bg-transparent",
         ].join(" ")}
       >

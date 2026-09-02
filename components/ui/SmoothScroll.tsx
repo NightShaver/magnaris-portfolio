@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import Lenis from "lenis";
 
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
+import { useLowPower } from "@/lib/useLowPower";
 
 /**
  * Lenis smooth scroll, driven by rAF.
@@ -20,9 +21,17 @@ declare global {
 
 export function SmoothScroll({ children }: { children: React.ReactNode }) {
   const reduced = usePrefersReducedMotion();
+  const lowPower = useLowPower();
 
   useEffect(() => {
     if (reduced) return;
+    /**
+     * Touch scrolling already runs on the compositor, off the main thread, and
+     * Lenis does not take it over by default. What would remain is a
+     * requestAnimationFrame loop doing scroll maths on every frame for no
+     * visible gain — on a phone that is a frame budget spent on nothing.
+     */
+    if (lowPower) return;
 
     const lenis = new Lenis({
       duration: 1.1,
@@ -46,7 +55,7 @@ export function SmoothScroll({ children }: { children: React.ReactNode }) {
       lenis.destroy();
       delete window.__lenis;
     };
-  }, [reduced]);
+  }, [reduced, lowPower]);
 
   return <>{children}</>;
 }

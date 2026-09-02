@@ -54,6 +54,15 @@
     -webkit-text-size-adjust: 100%;
   }
 
+  /* Lenis animates anchor jumps on pointer devices. Phones do not run it —
+     the loop costs a frame budget it cannot spare — so the browser's own
+     smooth scrolling takes over there, which runs on the compositor. */
+  @media (pointer: coarse) {
+    html {
+      scroll-behavior: smooth;
+    }
+  }
+
   body {
     background-color: var(--color-ink);
     color: var(--color-frost);

@@ -1,13 +1,21 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import { useMemo, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { AdaptiveDpr, Environment, Float, Lightformer } from "@react-three/drei";
-import { Bloom, EffectComposer, Vignette } from "@react-three/postprocessing";
 import * as THREE from "three";
 
 import { LOGO_PARTS, LOGO_SCALE, type LogoPart } from "@/lib/logo";
 import { createLogoGeometry } from "@/lib/logoGeometry";
+
+/**
+ * The composer lives in its own chunk: a phone skips the pass, and this way
+ * it skips the download too. See components/hero/HeroPost.tsx.
+ */
+const HeroPost = dynamic(() => import("./HeroPost").then((mod) => mod.HeroPost), {
+  ssr: false,
+});
 
 /** Brandboard colours, mirrored for the WebGL side. */
 export const BRAND_COLORS = {
@@ -22,6 +30,13 @@ type SceneProps = {
   /** Pointer position in normalised device coordinates, -1..1. */
   pointer: React.RefObject<THREE.Vector2>;
   reducedMotion?: boolean;
+  /**
+   * The cheap profile. A phone pays for every full-screen pass, so on one the
+   * scene drops the composer, halves the environment map, thins the dust and
+   * trades the clearcoat shader for a plain one. The composition, the colours
+   * and the motion stay identical — only the trimmings that cost a frame go.
+   */
+  lowPower?: boolean;
 };
 
 /* -------------------------------------------------------------------------
@@ -43,7 +58,7 @@ function Rig({ pointer, reducedMotion }: SceneProps) {
   return null;
 }
 
-function LogoPartMesh({ part }: { part: LogoPart }) {
+function LogoPartMesh({ part, lowPower }: { part: LogoPart; lowPower?: boolean }) {
   const geometry = useMemo(() => createLogoGeometry(part), [part]);
   const edges = useMemo(
     () => new THREE.EdgesGeometry(geometry, 20),
@@ -54,15 +69,27 @@ function LogoPartMesh({ part }: { part: LogoPart }) {
     return (
       <group>
         <mesh geometry={geometry} castShadow receiveShadow>
-          {/* Machined dark metal: the "corporate trust" half of the brand. */}
-          <meshPhysicalMaterial
-            color="#1b2434"
-            metalness={0.92}
-            roughness={0.2}
-            clearcoat={0.8}
-            clearcoatRoughness={0.2}
-            envMapIntensity={2.2}
-          />
+          {/* Machined dark metal: the "corporate trust" half of the brand.
+              Clearcoat is a second specular lobe — worth it on a desktop GPU,
+              not on a phone, where the standard material reads the same at
+              this size. */}
+          {lowPower ? (
+            <meshStandardMaterial
+              color="#1b2434"
+              metalness={0.9}
+              roughness={0.24}
+              envMapIntensity={2.2}
+            />
+          ) : (
+            <meshPhysicalMaterial
+              color="#1b2434"
+              metalness={0.92}
+              roughness={0.2}
+              clearcoat={0.8}
+              clearcoatRoughness={0.2}
+              envMapIntensity={2.2}
+            />
+          )}
         </mesh>
         {/* Hairline along every hard edge — reads as CAD, not as clay. */}
         <lineSegments geometry={edges}>
@@ -105,7 +132,7 @@ function LogoPartMesh({ part }: { part: LogoPart }) {
  *
  * Keep the group transforms below; the motion is tuned to them.
  */
-function MagnarisMark({ pointer, reducedMotion }: SceneProps) {
+function MagnarisMark({ pointer, reducedMotion, lowPower }: SceneProps) {
   const group = useRef<THREE.Group>(null);
 
   useFrame((state, delta) => {
@@ -129,7 +156,7 @@ function MagnarisMark({ pointer, reducedMotion }: SceneProps) {
   return (
     <group ref={group} scale={LOGO_SCALE * 1.15}>
       {LOGO_PARTS.map((part) => (
-        <LogoPartMesh key={part.id} part={part} />
+        <LogoPartMesh key={part.id} part={part} lowPower={lowPower} />
       ))}
     </group>
   );
@@ -182,7 +209,7 @@ function DustField({
   );
 }
 
-export function HeroScene({ pointer, reducedMotion }: SceneProps) {
+export function HeroScene({ pointer, reducedMotion, lowPower }: SceneProps) {
   return (
     <>
       <color attach="background" args={[BRAND_COLORS.ink]} />
@@ -213,14 +240,18 @@ export function HeroScene({ pointer, reducedMotion }: SceneProps) {
         floatIntensity={reducedMotion ? 0 : 0.45}
         floatingRange={[-0.08, 0.08]}
       >
-        <MagnarisMark pointer={pointer} reducedMotion={reducedMotion} />
+        <MagnarisMark
+          pointer={pointer}
+          reducedMotion={reducedMotion}
+          lowPower={lowPower}
+        />
       </Float>
 
-      <DustField reducedMotion={reducedMotion} />
+      <DustField count={lowPower ? 160 : 380} reducedMotion={reducedMotion} />
 
       {/* Studio lighting built from lightformers — no external HDRI request,
           so the hero renders identically offline and on first paint. */}
-      <Environment resolution={256}>
+      <Environment resolution={lowPower ? 128 : 256}>
         <Lightformer
           form="rect"
           intensity={3.2}
@@ -251,17 +282,11 @@ export function HeroScene({ pointer, reducedMotion }: SceneProps) {
         />
       </Environment>
 
-      {/* Only the emissive shards clear the threshold, so the metal stays
-          crisp instead of turning into fog. */}
-      <EffectComposer enableNormalPass={false}>
-        <Bloom
-          intensity={0.85}
-          luminanceThreshold={0.55}
-          luminanceSmoothing={0.25}
-          mipmapBlur
-        />
-        <Vignette offset={0.32} darkness={0.55} eskil={false} />
-      </EffectComposer>
+      {/* The composer is the single most expensive thing in this scene, so a
+          phone does without it. The shards are emissive and untone-mapped
+          either way, so they still read as light sources — just without the
+          halo around them. */}
+      {!lowPower && <HeroPost />}
 
       <AdaptiveDpr pixelated />
     </>
