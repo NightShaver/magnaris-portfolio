@@ -228,6 +228,19 @@ function Player({
     camera.position.set(0, 2, INTRO.from);
   }, [camera]);
 
+  /**
+   * Every hand-over replays the approach.
+   *
+   * The progress value belongs to the overlay, which outlives this canvas, so
+   * it cannot be trusted to be zero here — a finished flight left it at 1 and
+   * the next visit skipped straight past the gate, never reported arrival and
+   * left the HUD stuck on "Anflug". Arming it at the moment the visitor takes
+   * the controls makes that impossible regardless of how the room was left.
+   */
+  useEffect(() => {
+    if (started) intro.current = 0;
+  }, [started, intro]);
+
   useFrame((state, rawDelta) => {
     // Clamp delta so an alt-tab does not teleport the player across the room.
     const delta = Math.min(rawDelta, 0.05);
@@ -2060,7 +2073,7 @@ export function WalkableRoom() {
                 <div className="absolute left-6 top-6 flex items-center gap-3">
                   <span className="tag text-frost">MAGNARIS / SPACE</span>
                   <span className="h-px w-8 bg-line" />
-                  <span className="tag">WALKABLE ROOM · BUILD 0.2</span>
+                  <span className="tag">WALKABLE ROOM · BUILD 0.3</span>
                 </div>
 
                 {ambience.available && (
