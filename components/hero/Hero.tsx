@@ -8,6 +8,8 @@ import { BRAND, PILLARS } from "@/lib/site";
 import { EASE_BRAND, maskUp, stagger } from "@/lib/motion";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { useWalkableSupport } from "@/lib/useWalkableSupport";
+import { usePowerProfile } from "@/lib/useLowPower";
+import { HeroPoster } from "./HeroPoster";
 
 /**
  * The WebGL bundle never runs on the server and never blocks first paint —
@@ -34,6 +36,13 @@ export function Hero() {
    * that opens onto an apology is worse than a door marked desktop only.
    */
   const walkable = useWalkableSupport();
+  /**
+   * Which hero this device gets. The canvas is imported dynamically, so
+   * simply not rendering it is what keeps three.js off a phone entirely —
+   * hence the wait for a resolved answer instead of a boolean that starts
+   * out false.
+   */
+  const profile = usePowerProfile();
 
   const { scrollYProgress } = useScroll({
     target: section,
@@ -205,7 +214,15 @@ export function Hero() {
           style={reducedMotion ? undefined : { scale: canvasScale }}
           className="relative h-[46svh] w-full lg:h-[74svh]"
         >
-          <HeroCanvas />
+          {profile === "full" ? (
+            <HeroCanvas />
+          ) : profile === "low" ? (
+            <HeroPoster />
+          ) : (
+            // One frame of the empty frame while the profile resolves, which
+            // is what the canvas would show as its loading state anyway.
+            <div className="h-full w-full rounded-2xl border border-line/80 bg-ink-900" />
+          )}
         </motion.div>
       </div>
 

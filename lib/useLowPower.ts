@@ -26,13 +26,16 @@ import { useEffect, useState } from "react";
 
 type NavigatorWithMemory = Navigator & { deviceMemory?: number };
 
+export type PowerProfile = "unknown" | "low" | "full";
+
 /**
- * False on the server and for the first paint, so nothing has to be guessed
- * before the client can measure. Treat the first render as "full quality" —
- * downgrading a frame later is invisible, while upgrading is not.
+ * The three-state answer. "unknown" lasts until the first effect runs, and a
+ * caller that is about to mount something expensive has to wait for it —
+ * mounting a dynamic canvas during that first render fetches its bundle, and
+ * a phone would have paid for it before ever being asked.
  */
-export function useLowPower(): boolean {
-  const [low, setLow] = useState(false);
+export function usePowerProfile(): PowerProfile {
+  const [profile, setProfile] = useState<PowerProfile>("unknown");
 
   useEffect(() => {
     const query = window.matchMedia("(pointer: coarse)");
@@ -41,11 +44,12 @@ export function useLowPower(): boolean {
       const memory = (navigator as NavigatorWithMemory).deviceMemory;
       const cores = navigator.hardwareConcurrency;
 
-      setLow(
+      const low =
         query.matches ||
-          (typeof memory === "number" && memory <= 4) ||
-          (typeof cores === "number" && cores <= 4),
-      );
+        (typeof memory === "number" && memory <= 4) ||
+        (typeof cores === "number" && cores <= 4);
+
+      setProfile(low ? "low" : "full");
     };
 
     resolve();
@@ -53,5 +57,15 @@ export function useLowPower(): boolean {
     return () => query.removeEventListener("change", resolve);
   }, []);
 
-  return low;
+  return profile;
+}
+
+/**
+ * The same answer as a plain boolean, for callers that only tune something
+ * already on screen — a pixel ratio, a material, whether a loop starts.
+ * "unknown" reads as false there: the first frame runs at full quality, and
+ * downgrading a frame later is invisible while upgrading is not.
+ */
+export function useLowPower(): boolean {
+  return usePowerProfile() === "low";
 }
