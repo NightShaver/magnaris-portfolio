@@ -1824,7 +1824,16 @@ export function WalkableRoom() {
    */
   const handleLockChange = useCallback((next: boolean) => {
     setLocked(next);
-    if (!next) setAim(null);
+    if (!next) {
+      setAim(null);
+      // Losing the lock puts the camera back outside the gate, so the flight
+      // has to be armed again. Both of these live past the canvas: the ref
+      // survives because it belongs to this component, and without the reset
+      // the next entry skips the approach, never reports arrival, and leaves
+      // the HUD stuck on "Anflug" with no crosshair.
+      setArrived(false);
+      introProgress.current = 0;
+    }
     if (next) {
       setLockReady(true);
       return;
@@ -1876,6 +1885,7 @@ export function WalkableRoom() {
     setLocked(false);
     setAim(null);
     setArrived(false);
+    introProgress.current = 0;
   }, []);
 
   /**
