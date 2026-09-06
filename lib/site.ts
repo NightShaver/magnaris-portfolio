@@ -153,7 +153,28 @@ export const CASES: CaseStudy[] = [
     disciplines: ["WEB", "SPACE"],
     image: asset("/cases/eefelkank.jpg"),
   },
+  {
+    index: "06",
+    client: "Ferienhaus ZeeTraum",
+    title: "Ferienhaus mit direkter Anfrage",
+    year: "2026",
+    url: "https://nightshaver.github.io/ferienhaus-zeetraum-demo/",
+    disciplines: ["WEB", "UX"],
+    image: asset("/cases/zeetraum.jpg"),
+  },
 ];
+
+/**
+ * The years the published work spans, read off the list rather than typed out
+ * a second time — the index line under the section heading drifted out of date
+ * the moment a project from a new year was hung.
+ */
+export const CASE_YEARS = (() => {
+  const years = CASES.map((entry) => entry.year).sort();
+  const first = years[0];
+  const last = years[years.length - 1];
+  return first === last ? first : `${first} — ${last}`;
+})();
 
 export type Member = {
   slug: string;

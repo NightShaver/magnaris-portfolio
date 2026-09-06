@@ -4,7 +4,7 @@ import dynamic from "next/dynamic";
 import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 
-import { CASES } from "@/lib/site";
+import { CASES, CASE_YEARS } from "@/lib/site";
 import { fadeUp, stagger } from "@/lib/motion";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 
@@ -56,7 +56,7 @@ export function Cases() {
           </h2>
         </div>
         <p className="tag">
-          {label ?? `${CASES.length} Projekte / 2024 — 2025`}
+          {label ?? `${CASES.length} Projekte / ${CASE_YEARS}`}
         </p>
       </div>
 
