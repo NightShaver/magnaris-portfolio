@@ -96,11 +96,21 @@ const LITE: RoomQuality = {
   normalMaps: true,
   roughnessMaps: false,
   probe: false,
-  // 1.25 rather than 1: a phone's screen is 3x, and at a flat 1 the case
-  // captions and the lectern plates stop being legible, which is most of what
-  // the room is for. 1.25 on a 390 pt screen is 488 px across, about a
-  // quarter of the fragments of an uncapped 3x.
-  dprMax: 1.25,
+  // Two, and the reason it is not lower is that this room is mostly pictures.
+  //
+  // It was 1.25 for one build, which on a 390 point screen is 488 pixels
+  // across — and a case capture standing two metres away then filled about
+  // three hundred of them and was stretched back up to nine hundred by the
+  // display. The screenshots read as pixelated, which for a portfolio is the
+  // one thing they may not be.
+  //
+  // Two costs 2.5 times the fragments of 1.25 and the room can afford it,
+  // because of what the tour does rather than despite it: the frame rate is
+  // capped at 30, and parked at a station — which is where a picture is
+  // actually read — nothing moves and the loop falls to five. The expensive
+  // frames are the ones during a drag, and those are the ones nobody is
+  // studying.
+  dprMax: 2,
   fpsCap: 30,
 };
 

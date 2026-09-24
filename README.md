@@ -531,7 +531,7 @@ und weniger im Speicher gehalten.
 | Download `public/room/` | 2,4 MB | 0,5 MB |
 | Lichter im Shader | 7 | 2 |
 | Texturgriffe je Fragment (gebacken) | 5 | 3 |
-| Pixelverhältnis | bis 1,75 | bis 1,25 |
+| Pixelverhältnis | bis 1,75 | bis 2 |
 | Bilder je Sekunde | frei | 30, im Stand 5 |
 
 Der Speicher ist der Punkt, an dem ein Handy nicht langsamer wird, sondern
@@ -569,6 +569,33 @@ bei weniger Abtastungen eine höhere Mip-Stufe für denselben gestreckten
 Fußabdruck — und eine höhere Mip-Stufe in einem Atlas ist ein Chart, gemittelt
 mit seinen Nachbarn. Der dunkle Boden bezog seine Helligkeit aus dem, was neben
 ihm gepackt lag.
+
+**Das Pixelverhältnis ist hier höher als auf dem Desktop, nicht niedriger.**
+Die erste Fassung deckelte auf 1,25, was auf einem 390-Punkte-Schirm 488 Pixel
+Breite sind — eine Case-Aufnahme füllte davon etwa dreihundert und wurde vom
+Display auf neunhundert hochgezogen. Die Screenshots sahen verpixelt aus, und
+das ist bei einem Portfolio das Einzige, was sie nicht dürfen. Zwei kostet das
+Zweieinhalbfache an Fragmenten, und der Raum kann sich das gerade wegen der
+Tour leisten: gedeckelt auf 30 Bilder, und an einer Station — dort, wo ein Bild
+tatsächlich gelesen wird — bewegt sich nichts und die Schleife fällt auf fünf.
+Teuer sind die Frames während eines Ziehens, und die sieht sich niemand genau
+an. Kantenglättung ist auf `lite` dafür aus: bei 2× auf einem Handyschirm
+findet sie keine Kante mehr, die die Auflösung nicht schon erledigt hat.
+
+**`advance(timestamp)` will Sekunden.** Bei `frameloop="never"` liest
+react-three-fiber die Uhr nicht, sondern leitet das Frame-Delta aus dem
+Argument ab: `delta = timestamp - clock.elapsedTime`. Mit `performance.now()`
+gefüttert sieht es jeden Frame als sechzehn *Sekunden*. Alles im Raum, was sein
+Delta klemmt, hat das weggesteckt; das Zeichen auf dem Sockel, das es nicht
+tat, drehte sich siebzehnmal pro Sekunde, bis die Schleife auf ihre Ruherate
+fiel und die Drehung zu Flimmern aliaste. Jede Integration klemmt jetzt, und
+die Schleife übergibt Sekunden ab ihrem eigenen Nullpunkt — sonst ist der erste
+Frame so lang, wie der Besucher bis zum Knopfdruck gebraucht hat.
+
+**Der Anflug hängt an der Uhr, nicht an der Bildrate.** Geklemmte Deltas
+aufzusummieren heißt, dass ein Gerät mit zehn Bildern pro Sekunde den Flug mit
+einem Drittel der Echtzeit abspielt: aus drei Sekunden werden neun. Die
+Bewegung zu klemmen ist richtig, eine Einstellung dadurch zu dehnen nicht.
 
 **Messen geht nur auf dem Gerät.** `?fps=1` blendet im HUD Bildrate, Stufe und
 Pixelverhältnis ein. Ein Testbrowser auf dem Desktop rendert die Halle in

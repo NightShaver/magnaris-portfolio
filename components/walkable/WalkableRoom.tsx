@@ -1482,9 +1482,14 @@ export function MarkPlinth() {
    */
   const spotTarget = useMemo(() => new THREE.Object3D(), []);
 
-  useFrame((_, delta) => {
+  useFrame((_, rawDelta) => {
     if (!mark.current) return;
-    mark.current.rotation.y += delta * 0.22;
+    // Clamped like every other integration in this room. A frame delta is only
+    // ever a small number in the normal case, and the abnormal cases — a tab
+    // in the background for a minute, a phone that just woke up, a render loop
+    // that reports its time in the wrong unit — all arrive here as one huge
+    // step that spins the piece to a random angle or past it entirely.
+    mark.current.rotation.y += Math.min(rawDelta, 0.05) * 0.22;
   });
 
   return (
@@ -1929,7 +1934,13 @@ export function WalkableRoom() {
       // it fall to a heartbeat when the visitor is standing still. On the full
       // tier the browser keeps driving it as before.
       frameloop={touch ? "never" : "always"}
-      gl={{ antialias: true, powerPreference: "high-performance" }}
+      gl={{
+        // Multisampling is bandwidth, and on the lite tier the pixel ratio is
+        // already doing the same job better: at 2x on a phone screen there is
+        // no edge left for it to find that the resolution has not covered.
+        antialias: quality.tier === "full",
+        powerPreference: "high-performance",
+      }}
       camera={{ fov: touch ? fovFor(1) : 62, near: 0.05, far: 140 }}
       onCreated={({ gl }) => {
         // AgX, not ACES Filmic. Blender grades under AgX and that is what

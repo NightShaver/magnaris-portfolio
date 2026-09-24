@@ -220,6 +220,19 @@ export function TourPlayer({
   const glide = useRef(1);
   const dragging = useRef(false);
   const settled = useRef(0);
+  /**
+   * When the arrival flight started, on the wall clock.
+   *
+   * The flight is timed from this rather than from accumulated frame deltas,
+   * and the difference only shows on a slow device — which is exactly where it
+   * matters. Every integration in this room clamps its delta so that a long
+   * stall cannot teleport anything, and the cost of that clamp is that a
+   * device rendering at ten frames a second advances the flight at a third of
+   * real time. The movement is worth clamping; a three second shot that
+   * becomes nine is not. So the flight asks the clock how long it has been
+   * going, and a slow phone simply sees fewer frames of it.
+   */
+  const flightStart = useRef(0);
 
   const aspect = size.width / Math.max(1, size.height);
   const fov = fovFor(aspect);
@@ -237,6 +250,7 @@ export function TourPlayer({
     if (!started) return;
     progress.current = 0;
     glide.current = 1;
+    flightStart.current = performance.now();
     camera.position.set(0, 2, INTRO.from);
   }, [started, progress, camera]);
 
@@ -409,7 +423,10 @@ export function TourPlayer({
     /* ---- The arrival. Straight down the axis and through the portal, which
            opens from this same value. */
     if (flying) {
-      progress.current = Math.min(1, progress.current + delta / INTRO.duration);
+      progress.current = Math.min(
+        1,
+        (performance.now() - flightStart.current) / (INTRO.duration * 1000),
+      );
       const eased = 1 - Math.pow(1 - progress.current, 3);
       placement(station, fov, aspect, to);
       camera.position.set(
@@ -617,6 +634,17 @@ export function FrameCadence({
     let last = 0;
     let drawn = 0;
     let since = 0;
+    /**
+     * When this loop started, so the first frame is not enormous.
+     *
+     * react-three-fiber derives the delta by subtracting its own clock from
+     * whatever is passed here, and that clock is set to zero when the frameloop
+     * becomes "never". Passing the page's own timeline would therefore make the
+     * first frame as long as the visitor took to press the button — fifteen
+     * seconds is a normal figure — and every integration in the room would take
+     * one step of that size before the second frame corrected it.
+     */
+    let origin = 0;
 
     const loop = (now: number) => {
       frame = requestAnimationFrame(loop);
@@ -625,7 +653,18 @@ export function FrameCadence({
       // past its own budget every other frame and delivers 20.
       if (now - last < 1000 / hz - 1.2) return;
       last = now;
-      advance(now);
+      if (!origin) origin = now;
+      // Seconds, not milliseconds.
+      //
+      // In frameloop="never" react-three-fiber does not read the clock: it
+      // takes this argument as the elapsed time and derives the frame delta
+      // from it, `delta = timestamp - clock.elapsedTime`. Handed
+      // performance.now() it therefore sees every frame as sixteen *seconds*
+      // long. Everything in the room that clamps its delta shrugged that off;
+      // the mark on the plinth, which does not, turned seventeen times a
+      // second until the loop dropped to its idle rate and the spin aliased
+      // into a blur. That was the thing on the phone that looked broken.
+      advance((now - origin) / 1000);
 
       if (!onRate) return;
       drawn += 1;
