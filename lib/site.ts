@@ -162,6 +162,15 @@ export const CASES: CaseStudy[] = [
     disciplines: ["WEB", "UX"],
     image: asset("/cases/zeetraum.jpg"),
   },
+  {
+    index: "07",
+    client: "Burger & Art",
+    title: "Gastronomie zwischen Küche und Galerie",
+    year: "2026",
+    url: "https://burgerundart.magnaris.de/",
+    disciplines: ["WEB", "UX"],
+    image: asset("/cases/burgerundart.jpg"),
+  },
 ];
 
 /**

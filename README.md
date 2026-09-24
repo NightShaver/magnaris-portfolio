@@ -30,8 +30,13 @@ npm run typecheck  # tsc --noEmit
 app/
   layout.tsx        Root-Layout, Metadata, Fonts, Preloader, SmoothScroll, Header
   page.tsx          Dramaturgie der Startseite (Akt I–VI)
+  raum/page.tsx     Prüfseite: die gebackene Halle unter einer Orbit-Kamera
   globals.css       Design-Tokens (Farben, Typo, Easing) + Base-Layer
   fonts.ts          Font-Setup, umschaltbar auf lizenzierte Dateien
+blender/
+  01..08_*.py       Bauen, möblieren, texturieren, beleuchten, Exponate, backen, exportieren
+  export_layout.mjs lib/roomLayout.ts -> blender/room_layout.py
+  textures/         Gescannte Oberflächen, Poly Haven, CC0
 components/
   hero/             Split-Hero: Typografie links, extrudierte Wortmarke rechts
   sections/         Manifest, Leistungen (gepinnt), Cases (+ WebGL-Plate), Ablauf, Studio/Kontakt
@@ -39,6 +44,7 @@ components/
   ui/               Header, Logo, Preloader, Lenis-Provider
 lib/
   site.ts           Single Source of Truth: Marke, Säulen, Cases
+  roomLayout.ts     Single Source of Truth: die Maße der Halle
   logo.ts           Wortmarken-Geometrie für SVG *und* 3D
   motion.ts         Gemeinsame Varianten und Easing-Kurven
   caseTexture.ts    Prozeduraler Fallback, falls ein Capture fehlt
@@ -93,6 +99,69 @@ liegen, den auskommentierten `localFont`-Block aktivieren — die CSS-Variablen
   Case-Plate ab; die Seite bleibt vollständig bedienbar.
 - Build-Stand: First Load JS der Startseite 157 kB, der 3D-Stack lädt danach.
 
+## Oberflächen
+
+Wand, Decke, Obergaden und Sturz waren lange reine Farbwerte ohne Map. Für sich
+genommen in Ordnung, neben einem texturierten Boden falsch: der Verlauf des
+Wandfluters lag auf nichts, und die untexturierten Flächen lasen sich als ein
+anderer Render als die texturierten davor. Jetzt tragen alle vier denselben
+Putz (Grey Plaster, Poly Haven, CC0) in vier Werten.
+
+**Tönungen werden gerechnet, nicht geraten.** Die Palette sagt, wie eine Fläche
+aussehen soll; die Map bringt ihre eigene Helligkeit mit; und das
+Laufzeitmaterial kann nur multiplizieren. `tint_for()` misst den linearen
+Mittelwert der Diffuse einmal und teilt die Zielfarbe dadurch. Das von Hand zu
+lösen ist der Grund, warum der Boden beim ersten Umgraden fünfmal zu dunkel war.
+
+**Jeder `scanned()`-Aufruf muss durch `tint_for()`.** Ohne ihn wird die Map mit
+der Zielfarbe multipliziert statt darauf graduiert, und das Ergebnis ist um den
+Texturmittelwert zu dunkel. Bank und Pflanzkübel gingen als einzige roh hinein:
+das Nussbaumfurnier bekam `×0,254 / 0,195 / 0,138` statt `×1,0 / 1,0 / 0,87`,
+landete bei rund vier Prozent Helligkeit und verlor dabei seine Maserung — eine
+Holzbank, die wie grauer Beton aussah.
+
+**Der Anflugtunnel beginnt, wo die Wand endet.** Er begann dort, wo sie
+anfängt, und lag damit über die vollen 0,5 m Wanddicke mit seinen beiden
+Seitenflächen exakt in der Ebene der Portalleibung und mit seiner Decke exakt
+in der Ebene der Sturzunterseite. Zwei deckungsgleiche Flächen in derselben
+Tiefe kann kein Z-Buffer ordnen: die Eingangskante flimmerte auf ganzer Höhe,
+und nur diese eine, weil es die einzige Öffnung mit etwas dahinter ist. Der
+Boden bleibt ungerückt — waagrecht kann er mit einer Leibung nicht kollidieren,
+und die Bodenplatte der Halle endet an der Innenkante, sodass ein Verschieben
+einen halben Meter Loch an der Schwelle hinterließe.
+
+**Emissive Fugen dürfen die Öffnung nicht verlassen.** Die Leuchtplatte hinter
+jedem Wandblock ragt um eine halbe Fugenbreite über ihre Zelle hinaus, damit sie
+die Fuge von beiden Seiten füllt. Am Rand der Öffnung steckte sie dadurch drei
+Millimeter tief im Pfeiler, im Sturz und unter der Bodenplatte — zwei Körper im
+selben Raum, was ein Z-Buffer nicht auflösen kann. Die Portalleibung flackerte
+auf ganzer Höhe. Die Platte wird jetzt auf die Öffnung geklemmt.
+
+## Spiegelungen
+
+Der polierte Boden spiegelte lange eine von Hand gebaute Environment-Map: ein
+Leuchtband dort, wo die Voute läuft, eine Fläche dort, wo die Bilder hängen.
+Als Annäherung an das Licht brauchbar, als Annäherung an den Raum nicht — der
+Boden spiegelte einen weichen Verlauf, wo eine Arkade stehen sollte, und die
+Bildplatten, die das Hellste im Gebäude sind und der ganze Grund für einen
+polierten Boden, kamen darin überhaupt nicht vor.
+
+`RoomProbe` fotografiert stattdessen den Raum sich selbst: ein Cube-Render aus
+dem Mittelschiff, durch `PMREMGenerator` geschickt, damit jede Rauheit den
+passenden Unschärfegrad bekommt, und als `envMap` an die gebackenen Materialien
+gehängt. Kostet sechs Frames einmalig und danach nichts — die Halle bewegt sich
+nicht.
+
+Das Ergebnis liegt bewusst auf den Materialien und nicht auf `scene.environment`.
+Dort bleibt die gebaute Aufhellung stehen: die Bänke stecken in der Sonde, sie
+damit zu beleuchten wäre zirkulär, und Podest und Türen brauchen ein Ambiente,
+das nicht davon abhängt, wo die Sonde zufällig stand.
+
+Nebenbefund beim Umbau: der Boden war vorher gar nicht vom Bake getragen. Fast
+seine gesamte Erscheinung kam aus der Spiegelung jener erfundenen Flächen, und
+als die wegfiel, ging er aus. Seine Tönung ist deshalb neu gesetzt — auf das,
+was dunkler polierter Stein wirklich ist.
+
 ## Case-Plates
 
 `public/cases/*.jpg` hält Screenshots der Live-Seiten (1440x900). `CaseCanvas`
@@ -105,19 +174,72 @@ Rechtecks. Neue Referenz: Bild ablegen, Pfad in `lib/site.ts` eintragen.
 
 ## Walkable Room
 
-Der Raum ist als Galerie gebaut, nicht als Box: polierter Boden
-(`MeshReflectorMaterial`), Wandsockel-Schattenfuge, Pilaster im Raster,
-Voutenlicht unter der Decke, eine Reihe Deckenleuchten für gleichmäßige
-Aufhellung. Die fünf Cases hängen als echte Captures gerahmt an den Längswänden,
-jeweils mit eigener Leuchte und DOM-Bildunterschrift; in der Mitte steht die
-extrudierte Wortmarke auf einem Podest.
+Der Raum ist eine Basilika, keine Box: niedrige Seitenschiffe, in denen die
+Bilder hängen und aus der Nähe betrachtet werden, eine Arkade aus Säulen, und
+darüber ein hohes Mittelschiff. Die Säulen stehen in den Lücken *zwischen* den
+Jochen, damit jedes Bild in einer eigenen Arkadenöffnung zentriert steht und
+vom Mittelschiff aus sichtbar bleibt.
 
-**Der Raum skaliert mit der Case-Liste.** `ROOM.depth` wird aus `CASES.length`
-berechnet: zwei Cases pro Joch, ein Joch alle `ROW_SPACING` Meter, plus Vorzone
-an beiden Enden. Daraus leiten sich Pilaster (`PILASTER_Z`), Bänke, Deckenlicht,
-Schienenabhängungen, Teppichlänge und die Absperrungen ab. Ein sechstes oder
-sechzehntes Projekt in `lib/site.ts` verlängert die Halle — keine Koordinate in
-`WalkableRoom.tsx` muss angefasst werden.
+**Die Laufrichtung kommt aus dem Gierwinkel, nie aus der Blickrichtung.**
+`getWorldDirection()` flach zu legen und zu normalisieren hat genau dort eine
+Singularität, wo man in einer Galerie hinsieht: nach oben. Nahe der Senkrechten
+ist der waagerechte Anteil fast null, das Normalisieren verstärkt den
+numerischen Rest zu einer Richtung, und beim Überschreiten des Scheitels kippt
+das Vorzeichen. Wer vorwärts ging und dabei einem Planeten nachsah, lief
+plötzlich rückwärts. Der Gierwinkel hat keinen solchen Punkt: die
+PointerLockControls halten die Kamera in `YXZ`, ein Auslesen des Quaternions in
+derselben Reihenfolge liefert die Richtung direkt, und die Neigung kommt gar
+nicht erst daran.
+
+**Hindernisse dürfen sich nicht überlappen.** Podest und Pult hatten je einen
+Kreis, 1,14 m und 0,82 m, mit 1,12 m Mittenabstand — eine Überlappung von 84
+Zentimetern. Wer in diese Linse geriet, wurde pro Frame aus dem einen in den
+anderen geschoben, und der zweite Stoß konnte ihn um das erste Hindernis herum
+auf die Gegenseite tragen. Von innen liest sich das wie ein Sprung nach hinten.
+Ein Exponat ist jetzt eine Kapsel: eine Strecke vom Podest zum Pult mit einem
+Radius. Eine Distanz, ein Stoß, keine Linse.
+
+**Rund, nicht eckig.** Eine Arkade ist historisch eine Säulenreihe, und für
+eine Kunsthalle gewinnt der Schaft aus einem zweiten Grund: die streifenden
+Bodenfluter waschen einen Zylinder als einen durchgehenden Verlauf und einen
+Kasten als vier flache Facetten. Dazu verschwindet ein Problem statt sich zu
+verschieben — ein Kasten mit weltbezogener Texturprojektion spiegelt das Muster
+an jeder senkrechten Kante, und das war aus der Nähe das mit Abstand
+auffälligste am ganzen Raum. Eine Säule hat keine Kante.
+
+Die Schwellung ist Entasis: gut ein Drittel der Höhe hinauf ist der Schaft drei
+Millimeter dicker als am Fuß. Als Maß unsichtbar, als Silhouette
+unverwechselbar — ein Schaft, der stur von unten nach oben verjüngt, sieht
+eingeschnürt aus.
+
+Lichte Maße: Seitenschiff 5,0 × 4,4 m (1,14 : 1, intim), Mittelschiff
+14,2 × 8,0 m (1,78 : 1, eine Halle). Die Fassung davor war ein einzelnes
+26-m-Volumen mit 6,4 m Decke, und das liest sich als Sporthalle: vier Meter
+Breite auf jeden Meter Höhe, dazu zwanzig Meter leerer Boden zwischen zwei
+Bilderreihen, die nichts miteinander zu tun haben.
+
+Gebaut wird die Halle nicht mehr im Browser. Sie entsteht in Blender und kommt
+als gebackenes glTF an — siehe den nächsten Abschnitt. Das gilt auch für die
+Möblierung: Bänke, Mülleimer, Pflanzkübel und Absperrungen sind modellierte
+Objekte mit Fasen, gescanntem Nussbaum und Gussbeton, und sie werfen ihre
+Schatten gebacken auf den Marmor.
+
+Im Frontend bleibt nur, was sich bewegt oder Inhalt ist: Tor und Anflugtunnel,
+die Kontakttür, das Podest mit der rotierenden Wortmarke, die Gründer-Panels,
+die Gehäuse der Bildleuchten und die Case-Platten selbst.
+
+**Die Halle hat eine feste Länge.** `ROW_COUNT` in `lib/roomLayout.ts` steht auf
+3; daraus folgen 40,5 m Tiefe, vier Joche und acht Hängeplätze, von denen sechs
+belegt sind. Früher wuchs der Raum mit `CASES.length`. Das war richtig, solange
+er zur Laufzeit erzeugt wurde, und ist falsch, seit sein Licht gebacken ist:
+eine Lightmap gilt nur für die Wände, gegen die sie gebacken wurde. Über acht
+Cases hinaus heißt deshalb: Zahl erhöhen und die Pipeline neu laufen lassen. Ein
+bewusster Schritt, kein Nebeneffekt beim Editieren einer Inhaltsdatei.
+
+Bewegung und Kollision: Grenzen der Halle, die acht Pfeiler der Arkade und ein
+Zylinder um das Podest. Weiterhin analytisch statt gesweepter Geometrie — das
+ist die richtige Größe Lösung für eine Halle, deren Hindernisse acht Kästen an
+bekannten Stellen sind.
 
 Absperrungen stehen vor jedem Bild; dieselbe Linie erzwingt `ROOM.wallClearance`
 in der Bewegung, damit man nicht ins Bild laufen kann.
@@ -150,10 +272,212 @@ tauscht die Seiten. Ein Foto unter `public/team/<slug>.jpg` (3:4) ersetzt den
 gezeichneten Platzhalter; fehlt es, bleibt das Panel trotzdem fertig (und der
 Browser loggt einen 404 für die fehlende Datei).
 
-Wichtig für spätere Änderungen: **jede Fläche ist eine eigene einseitige Plane.**
-Die erste Fassung hatte eine invertierte Box *und* separate Boden- und
-Deckenflächen an derselben Stelle — zwei koplanare Faces in identischer Tiefe
-sind genau das, was einen Raum flackern lässt.
+Wichtig für spätere Änderungen an der Geometrie: **die Wickelrichtung der
+Faces entscheidet.** Ein Renderer dreht rückseitige Flächen beim Shading um,
+eine invertiert gewickelte Wand sieht im Viewport also völlig korrekt aus. Ein
+Bake tut das nicht: er hat keinen Sehstrahl, gegen den er drehen könnte, und
+nimmt die geometrische Normale als Sampling-Hemisphäre. Ein Boden, dessen
+Normale nach unten in die eigene Platte zeigt, wird schwarz gebacken — und
+zwar lautlos, mit fehlerfreiem Albedo-Bake daneben.
+
+## Die Halle kommt aus Blender
+
+`blender/01_shell.py` bis `08_export.py` bauen, texturieren, beleuchten, backen
+und exportieren die Halle. **Die Skripte sind die Quelle, nicht die `.blend`.**
+Die Datei liegt nicht im Repo und lässt sich jederzeit aus dem Nichts neu
+erzeugen; Binärgeschiebe in einem Repo dieser Größe ist die Bequemlichkeit
+nicht wert.
+
+| Skript | Aufgabe |
+| --- | --- |
+| `01_shell.py` | Blockout: Boden, Wände, Seitenschiffdecken, Arkade, Obergaden, Voutenleiste, Schattenfugen, Toröffnung, ein Empty je Hängeplatz |
+| `02_furniture.py` | Sechs Bänke, drei Mülleimer, zehn Pflanzkübel, acht Absperrungen. Alles gefast, Pflanzen mit Dicke statt Alpha-Karten |
+| `03_materials.py` | 15 Materialien. Marmor, Nussbaum und Beton aus Scans (Poly Haven, CC0), prozedurale Aderung als Fallback, falls die Texturen fehlen |
+| `make_neutral_marble.py` | Einmalig, nicht Teil der Kette: gradiert den Marmor-Scan neutral und hell |
+| `04_lighting.py` | 43 Leuchten: acht Wandfluter, 18 Voutensegmente, zehn Pfeilerfluter, fünf Deckenstrahler, zwei Markenakzente |
+| `05_exhibits.py` | Das Stirnjoch: die Hidden Wall mit sechs fahrenden Blöcken, zwei Podeste mit schwebenden Skulpturen und Lesetafeln, drei eigene Leuchten, zwei Animationsclips |
+| `06_unwrap.py` | Fügt drei Backmeshes: `Hall`, `Fittings` und `Arcade`. UV0 Weltmaß-Würfelprojektion (1 m = 1 UV-Einheit), UV1 gepackter Lightmap-Atlas |
+| `07_bake.py` | Cycles, 512 Samples, nur Direkt + Indirekt ohne Farbe. Danach Firefly-Filter. Die Arkade backt zusätzlich ihr eigenes Albedo |
+| `08_export.py` | Draco-komprimiertes glTF, WebP-Texturen und `room.json` nach `public/room/` |
+
+**Warum drei Backmeshes.** Die Halle sind 7100 m² auf 108 Faces, die Möblierung
+91 m² auf zehntausend, die Arkade 132 m². In einem Atlas zahlt die Texeldichte
+der Halle für die einer Bank: kleine Objekte bringen fast keine Fläche mit und
+enorm viele Inseln, und jede Insel kostet Rand. Getrennt bekommt jedes, was es
+braucht — **17 px/m** für das Gebäude, **44 px/m** für die Möbel, **134 px/m**
+für die Arkade, vor der man am nächsten steht.
+
+Beim Backen ist jeweils das andere Mesh sichtbar. Deshalb werfen die Bänke ihre
+Schatten auf den Marmor und bekommen im Gegenzug dessen Bounce ab.
+
+**Die Arkade backt außerdem ihre eigene Farbe.** Ihr Marmor ist prozedural, und
+eine Prozedur kann glTF nicht transportieren — der Albedo-Pass ist der einzige
+Weg, die Aderung überhaupt in den Browser zu bekommen. Der schöne Nebeneffekt:
+weil jede Säule einzeln abgewickelt ist, kommt sie ohne Kachelung, ohne
+Wiederholung und ohne Naht an, und jede Säule ist anders geadert, weil jede an
+einer anderen Stelle desselben 3D-Rauschfeldes steht. Genau das tut echter
+Marmor auch.
+
+**Fireflies.** Ein Bake bekommt keinen Denoiser — `scene.cycles.use_denoising`
+ist eine Render-Einstellung, `BakeSettings` hat kein Gegenstück. Ein einzelnes
+unglückliches Indirect-Sample überlebt also dauerhaft als weißer Punkt. Die
+weißen Säulen haben die Helligkeit der ganzen Halle angehoben und die Punkte
+mitgebracht. `sample_clamp_indirect` allein reicht nicht: die dunklen Decken
+werden fast nur von dem beleuchtet, was die Säulen zurückwerfen, und dort ist
+die Schätzung relativ verrauscht, egal wie hart absolut geklemmt wird. Deshalb
+läuft nach jedem Bake ein Ausreißerfilter über den Atlas — ein Texel, das
+heller ist als das 2,5-fache des Medians seiner acht Nachbarn, bekommt diesen
+Median. Ein Verlauf hat keine Ausreißer und bleibt unangetastet.
+
+Der Reihe nach, aus Blender heraus:
+
+```python
+for name in ("01_shell", "02_furniture", "03_materials", "04_lighting",
+             "05_exhibits", "06_unwrap", "07_bake", "08_export"):
+    exec(open(fr"<repo>\blender\{name}.py").read())
+```
+
+### Das Stirnjoch: was sich bewegt und was gebacken wird
+
+Am Ende der Halle steht das Einzige im Raum, das der Browser selbst bewegt.
+`05_exhibits.py` baut in zwei Kollektionen, und die Trennung ist der ganze
+Entwurf:
+
+- **`40_Exhibits`** steht still. Podeste und Pulte wandern in 06_unwrap ins
+  Fittings-Backmesh und bekommen dieselbe Lightmap wie die Bänke. Genau das
+  gibt einem Podest seinen Kontaktschatten statt eines Schwebeeffekts.
+- **`45_Runtime`** wird vom Browser gefahren: sechs Wandblöcke, elf
+  Skulpturenteile, zwei Tafeln. Nie gebacken — eine Lightmap ist die Aufnahme
+  eines Augenblicks, und nichts davon hält still.
+
+Beide sind beim Backen sichtbar, also wirft die geschlossene Wand ihren
+Schatten und das Cyan läuft auf den Boden. Sie sind nur keine Backziele.
+
+**Zwei Blockwände, ein Bauteil.** Die Halle hat zwei Öffnungen und beide
+bekommen dieselbe Antwort: `build_block_wall()` baut sie einmal und wird
+zweimal gerufen. Am hinteren Ende ist es der Ausgang, am Portal die Wand, durch
+die der Besucher beim Anflug hereinkommt. Unterschiedlich ist nur, was sie
+antreibt — Nähe dort, Flugfortschritt hier — und wohin die dekorierte Seite
+zeigt: am Portal nach außen, denn dort kommt der Besucher an. Jeder Block trägt
+darum **zwei** Gesichter mit Fugenlicht; ohne das zweite sah man von der
+jeweils anderen Seite auf die flache Rückseite des Kerns.
+
+**Die Hidden Wall.** Sechs Blöcke füllen die Öffnung bündig mit der Rückwand,
+getrennt von 6 mm Fugen mit Licht dahinter. Damit das als Wand durchgeht und
+nicht als Tür, tragen die Blöcke denselben Putz in derselben Kachelung und
+demselben Wert wie die Wand daneben (`Wall_Hidden` ist eine Kopie von
+`Wall_Aisle`) — und die Wand wird **im Frontend** beleuchtet, nicht im Bake.
+Ein gebackener Streifer erreicht die Blöcke nicht, weil die sich bewegen; er
+landet auf ihnen als Umriss, und ein Umriss ist das Einzige, was eine
+versteckte Wand nicht haben darf.
+
+Die Mechanik fährt drei Züge: zurück aus dem Rahmen, seitlich, und wieder nach
+vorn in die Dicke des Pfeilers. Der dritte ist unsichtbar und trotzdem der
+wichtigste — ohne ihn parken die Blöcke im offenen Raum hinter der Wand, und
+eine 5,2 m breite Öffnung reicht aus, sie von überall im Mittelschiff dort
+stehen zu sehen.
+
+**Die Animation nach WebGL.** Keyframes gehen in Actions, Actions auf benannte
+NLA-Tracks, und `08_export.py` exportiert im Modus `NLA_TRACKS`. Der fasst
+gleichnamige Tracks über alle Objekte hinweg zu *einem* glTF-Clip zusammen —
+der einzige Weg, sechs Blöcke als eine Mechanik aus Blender zu bekommen. Zwei
+Tracks, zwei Clips:
+
+| Clip | Länge | Wie er gespielt wird |
+| --- | --- | --- |
+| `HiddenWall` | 3,5 s | Gar nicht. Die Zeit wird aus dem Abstand des Besuchers geschrieben, also läuft die Mechanik beim Weggehen rückwärts, im selben Tempo. |
+| `PortalWall` | 3,5 s | Ebenso, nur aus dem Anflug: die Wand teilt sich, während der Besucher noch unterwegs ist, und schließt hinter ihm. |
+| `Idle` | 20 s | Endlos. Erster Frame gleich letztem, deshalb hat die Wiederholung keine Naht. |
+
+**Warum der Idle-Clip 20 s lang ist.** Jede Drehung darin muss eine *ganze*
+Zahl von Umdrehungen sein, sonst springt der Loop an der Nahtstelle — ein
+Planet, der bei 0,62 Umdrehungen angekommen ist, wird beim Wiederholen um die
+fehlenden 137° zurückgerissen. Unterschiedliche Geschwindigkeiten kommen also
+aus unterschiedlichen ganzen Umdrehungszahlen, und langsam wird etwas nur,
+indem der Clip länger wird. `spin()` wirft, wenn jemand wieder einen Bruch
+einträgt.
+
+Ein Mixer für beide, in `BakedHall.tsx`. Zwei Mixer auf derselben Wurzel würden
+jeder eigene Bindings auf dieselben Knoten halten.
+
+Ändert sich ein Maß, dann in `lib/roomLayout.ts` und danach
+`node blender/export_layout.mjs`. Das schreibt `blender/room_layout.py`, das
+jedes Build-Skript importiert: die Halle, der begehbare Raum und die gebackene
+Lightmap beschreiben dieselben Wände, weil die Zahl genau einmal existiert.
+
+**Warum überhaupt backen.** Echte Architektur mit Seitenschiffen, Arkade und
+Obergaden, dazu jeder Lichtbounce, Kontaktschatten in den Ecken und ein
+Voutenlicht — das kann ein Browser pro Frame nicht bezahlen. Der Preis ist,
+dass die Halle festliegt: eine Wand ändern heißt Blender öffnen und neu backen.
+Genau den Handel sollte eine Galerie machen und ein Konfigurator nicht.
+
+**Was der Export schreibt** (zusammen 2,40 MB):
+
+```
+public/room/
+  arcade_albedo.webp      700 KB  der Marmor der Säulen, 1536, einmalig pro Säule
+  arcade_lightmap.webp    297 KB
+  fittings_lightmap.webp  283 KB
+  hall_lightmap.webp      267 KB
+  hall.glb                201 KB  drei Meshes, beide UV-Kanäle, Materialnamen, acht Anker
+  stone_diffuse.webp      134 KB  Marmor, 1k
+  concrete_normal.webp     98 KB  Beton, 512
+  plaster_rough.webp       94 KB  Putz, 512
+  concrete_diffuse.webp    85 KB
+  plaster_diffuse.webp     73 KB
+  stone_rough.webp         57 KB
+  concrete_rough.webp      43 KB
+  wood_rough.webp          42 KB  Nussbaum, 512
+  plaster_normal.webp      32 KB
+  stone_normal.webp        18 KB
+  wood_diffuse.webp        16 KB
+  wood_normal.webp         13 KB
+  room.json                 6 KB  Palette, Kachelmaße, Anker, lightMapIntensity
+```
+
+**Ein Stein, zwei Oberflächen.** Der gelieferte Cartago-Scan ist ein dunkler
+Plattenboden mit terrakottafarbenen Reihen darin — daher die braunen Flecken,
+die vorher auf dem Boden zu sehen waren. `make_neutral_marble.py` entsättigt
+ihn einmalig fast bis auf seine eigene Luminanz und hebt den Wert von 0,096 auf
+0,50 linear. Dieselbe Datei trägt danach beides: die Pfeiler mit einer fast
+weißen Tönung als weißer Marmor, den Boden mit einer dunklen als polierter
+Stein. Der Umweg ist nötig, weil das Laufzeitmaterial `color x map` rechnet und
+eine Multiplikation nur abdunkeln kann.
+
+Die Geometrie ist Draco-komprimiert: 1108 KB ohne, 163 KB mit. Der Decoder
+liegt selbstgehostet in `public/draco/` (250 KB, einmal geladen und gecacht),
+nicht auf Googles CDN — eine statisch ausgelieferte Seite hat nichts damit zu
+tun, zum Dekomprimieren ihrer eigenen Möbel nach außen zu telefonieren.
+
+Die Materialien stehen bewusst nicht als Shader in der glTF. Der Marmor läuft
+über Mapping, Tint und Kontrast, bevor er die Base Color erreicht; glTF kann
+das nicht ausdrücken und der Exporter lässt die Textur stillschweigend fallen,
+sobald etwas dazwischen sitzt. Also trägt die Datei Geometrie, UVs und
+Materialnamen, und `components/walkable/BakedHall.tsx` baut die echten
+Materialien aus `room.json`. Nebeneffekt: die Laufzeit bekommt ein
+`MeshStandardMaterial`, an das sich Lightmap und Environment hängen lassen.
+
+**Zwei Dinge, die three.js wissen muss.** glTF hat keinen Lightmap-Slot, also
+bekommt jede Textur `channel = 1` — ohne das sampelt three die
+Würfelprojektion und der Raum wird von einem Schmier beleuchtet. Und der Bake
+ist HDR, eine PNG ist es nicht: normalisiert auf das 99,5-Perzentil,
+sRGB-kodiert, und `lightMapIntensity` aus `room.json` multipliziert das wieder
+heraus — je Mesh ein eigener Faktor.
+
+**Und eines, das die Gliederung wissen muss.** Alles, was eine Datei lädt, muss
+innerhalb des `<Canvas>` unter einer `<Suspense>`-Grenze liegen. Eine
+Komponente, die ohne Grenze suspendiert, reißt den Canvas mit: React hängt den
+Teilbaum ab, R3F ruft beim Abräumen `forceContextLoss()`, und das
+Canvas-Element bekommt nie einen zweiten Kontext. Das Ergebnis ist ein
+schwarzer Bildschirm ohne eine einzige Zeile in der Konsole.
+
+**Prüfen: `/raum`.** Der Raum unter einer Orbit-Kamera, mit sechs festen
+Standpunkten, einem Umschalter zwischen leerer Halle und Möblierung, und den
+Zahlen des Exports daneben. Der begehbare Raum liegt hinter
+einem Pointer Lock, was für Besucher richtig und zum Betrachten eines Gebäudes
+unbrauchbar ist: nicht auf dem Handy, nicht per Test-Screenshot, nicht an einem
+festen Standpunkt zum Vergleich zweier Bakes. Nach jedem Neubacken hier
+hineinschauen.
 
 ## Deployment
 
@@ -176,7 +500,22 @@ Für ein Deployment auf eigener Domain (Vercel, Netlify, statischer Server) die
 Variable einfach weglassen.
 
 ## Offene Punkte
-- Walkable Room: GLTF-Environment statt gebauter Geometrie, echte Kollision
-  (three-mesh-bvh oder Rapier), Video-Texturen auf den Exponaten,
-  optional WebXR über `@react-three/xr`.
+- Walkable Room: Video-Texturen auf den Exponaten, optional WebXR über
+  `@react-three/xr`. Kollision gegen echte Geometrie (three-mesh-bvh oder
+  Rapier) lohnt erst, wenn im Raum etwas steht, das kein achsenparalleler
+  Kasten ist. Bänke und Kübel stehen bewusst außerhalb der Laufwege.
+- Die Möblierung kommt gegenüber `lib/roomLayout.ts` in x gespiegelt an: die
+  Achsenabbildung nach Blender vertauscht zwei Achsen und ist damit eine
+  Spiegelung. Für symmetrische Sätze — Bänke, Kübel, Absperrungen — fällt das
+  nicht auf; bei den Mülleimern beginnt die Links-rechts-Abwechslung auf der
+  anderen Seite. Sauber wäre, `to_blender` das x negieren zu lassen, was aus
+  der Spiegelung eine echte Drehung macht.
+- Der Farbraum ist jetzt AgX, nicht mehr ACES Filmic. Blender gradiert unter
+  AgX, und genau dagegen wurde jede Entscheidung in diesem Raum getroffen; mit
+  ACES auszuliefern hieß, ein Bild freizugeben und ein anderes zu schicken.
+- Eine Sonde für 40 m Halle ist ein Parallaxen-Kompromiss. Sie steht sechs
+  Meter vom Podest entfernt im Mittelschiff; wer am Stirnende steht, sieht eine
+  Spiegelung, die von der Mitte aus aufgenommen wurde. Mehrere Sonden mit
+  Abstandsblendung wären der nächste Schritt, lohnen aber erst, wenn jemand die
+  Halle danach beurteilt.
 - Kontaktformular oder Terminbuchung hinter „Projekt starten“.
