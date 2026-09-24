@@ -8,3 +8,18 @@ next-env.d.ts
 .playwright-mcp
 .claude
 .vscode
+
+# Blender: the .blend is a working file, not the source of truth.
+# blender/*.py rebuilds it from scratch, so it stays out of git — binary churn
+# in a repo this size is not worth the convenience.
+blender/*.blend
+blender/*.blend1
+blender/bake/
+
+# Exported room assets under public/room/ ARE committed: the static export
+# deploys straight from the repo and needs them at runtime.
+
+# Blender-Nebenprodukte: Bytecode und Referenz-Renders aus der Entwicklung.
+# Beides entsteht beim Ausfuehren neu und gehoert nicht in die Historie.
+blender/__pycache__/
+blender/preview/

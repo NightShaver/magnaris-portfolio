@@ -1,0 +1,749 @@
+{
+  "generated": "blender/08_export.py",
+  "mesh": "hall.glb",
+  "yawOnLoad": 3.141593,
+  "meshes": [
+    {
+      "name": "Hall",
+      "lightmap": {
+        "texture": "hall_lightmap.webp",
+        "uv": 1,
+        "colorSpace": "srgb",
+        "intensity": 2.5924,
+        "resolution": 2048,
+        "samples": 512
+      }
+    },
+    {
+      "name": "Fittings",
+      "lightmap": {
+        "texture": "fittings_lightmap.webp",
+        "uv": 1,
+        "colorSpace": "srgb",
+        "intensity": 2.2362,
+        "resolution": 1024,
+        "samples": 512
+      }
+    },
+    {
+      "name": "Arcade",
+      "lightmap": {
+        "texture": "arcade_lightmap.webp",
+        "uv": 1,
+        "colorSpace": "srgb",
+        "intensity": 1.0,
+        "resolution": 1024,
+        "samples": 512
+      },
+      "albedo": {
+        "texture": "arcade_albedo.webp",
+        "uv": 1,
+        "colorSpace": "srgb"
+      }
+    }
+  ],
+  "textures": {
+    "stone": {
+      "map": "stone_diffuse.webp",
+      "roughnessMap": "stone_rough.webp",
+      "normalMap": "stone_normal.webp"
+    },
+    "wood": {
+      "map": "wood_diffuse.webp",
+      "roughnessMap": "wood_rough.webp",
+      "normalMap": "wood_normal.webp"
+    },
+    "concrete": {
+      "map": "concrete_diffuse.webp",
+      "roughnessMap": "concrete_rough.webp",
+      "normalMap": "concrete_normal.webp"
+    },
+    "plaster": {
+      "map": "plaster_diffuse.webp",
+      "roughnessMap": "plaster_rough.webp",
+      "normalMap": "plaster_normal.webp"
+    }
+  },
+  "credit": "grey_cartago_01, american_walnut_veneer, concrete_floor_01 \u2014 Poly Haven, CC0",
+  "materials": [
+    {
+      "name": "Marble_Dark",
+      "mesh": "Hall",
+      "kind": "textured",
+      "texture": "stone",
+      "tile": 2.9,
+      "color": "#252f3f",
+      "roughness": [
+        0.1,
+        0.3
+      ],
+      "normalStrength": 0.45,
+      "metalness": 0.0
+    },
+    {
+      "name": "Wall_Aisle",
+      "mesh": "Hall",
+      "kind": "textured",
+      "texture": "plaster",
+      "tile": 3.2,
+      "color": "#aec0e4",
+      "roughness": [
+        0.8,
+        0.94
+      ],
+      "normalStrength": 0.35,
+      "metalness": 0.0
+    },
+    {
+      "name": "Ceiling",
+      "mesh": "Hall",
+      "kind": "textured",
+      "texture": "plaster",
+      "tile": 4.0,
+      "color": "#4e5d75",
+      "roughness": [
+        0.9,
+        1.0
+      ],
+      "normalStrength": 0.35,
+      "metalness": 0.0
+    },
+    {
+      "name": "Clerestory",
+      "mesh": "Hall",
+      "kind": "textured",
+      "texture": "plaster",
+      "tile": 3.2,
+      "color": "#e9fbff",
+      "roughness": [
+        0.88,
+        0.98
+      ],
+      "normalStrength": 0.35,
+      "metalness": 0.0
+    },
+    {
+      "name": "Reveal",
+      "mesh": "Hall",
+      "kind": "flat",
+      "color": "#0a0e15",
+      "roughness": 1.0,
+      "metalness": 0.0
+    },
+    {
+      "name": "Wood_Bench",
+      "mesh": "Fittings",
+      "kind": "textured",
+      "texture": "wood",
+      "tile": 0.85,
+      "color": "#fffff0",
+      "roughness": [
+        0.3,
+        0.52
+      ],
+      "normalStrength": 0.55,
+      "metalness": 0.0
+    },
+    {
+      "name": "Steel_Dark",
+      "mesh": "Fittings",
+      "kind": "flat",
+      "color": "#202733",
+      "roughness": 0.42,
+      "metalness": 0.65
+    },
+    {
+      "name": "Foliage",
+      "mesh": "Fittings",
+      "kind": "flat",
+      "color": "#3f5f4a",
+      "roughness": 0.62,
+      "metalness": 0.0
+    },
+    {
+      "name": "Concrete_Pot",
+      "mesh": "Fittings",
+      "kind": "textured",
+      "texture": "concrete",
+      "tile": 1.1,
+      "color": "#f0fdff",
+      "roughness": [
+        0.62,
+        0.88
+      ],
+      "normalStrength": 0.5,
+      "metalness": 0.0
+    },
+    {
+      "name": "Rope",
+      "mesh": "Fittings",
+      "kind": "flat",
+      "color": "#6f63c7",
+      "roughness": 0.92,
+      "metalness": 0.0
+    },
+    {
+      "name": "Steel_Bright",
+      "mesh": "Fittings",
+      "kind": "flat",
+      "color": "#98a3b2",
+      "roughness": 0.26,
+      "metalness": 0.9
+    },
+    {
+      "name": "Concrete_Podium",
+      "mesh": "Fittings",
+      "kind": "textured",
+      "texture": "concrete",
+      "tile": 1.3,
+      "color": "#808da2",
+      "roughness": [
+        0.48,
+        0.74
+      ],
+      "normalStrength": 0.9,
+      "metalness": 0.0
+    },
+    {
+      "name": "Exhibit_Glow",
+      "mesh": "Fittings",
+      "kind": "flat",
+      "color": "#0a0d13",
+      "roughness": 0.35,
+      "metalness": 0.0,
+      "emissive": "#22dcd6",
+      "emissiveStrength": 4.0
+    },
+    {
+      "name": "Marble_Column",
+      "mesh": "Arcade",
+      "kind": "baked",
+      "color": "#ffffff",
+      "roughness": 0.16,
+      "metalness": 0.0
+    },
+    {
+      "name": "Display_Plate",
+      "mesh": "45_Runtime",
+      "kind": "flat",
+      "color": "#070b11",
+      "roughness": 0.12,
+      "metalness": 0.0,
+      "emissive": "#0f8e91",
+      "emissiveStrength": 0.55
+    },
+    {
+      "name": "Wall_Hidden",
+      "mesh": "45_Runtime",
+      "kind": "textured",
+      "texture": "plaster",
+      "tile": 3.2,
+      "color": "#aec0e4",
+      "roughness": [
+        0.8,
+        0.94
+      ],
+      "normalStrength": 0.35,
+      "metalness": 0.0
+    },
+    {
+      "name": "Seam_Glow",
+      "mesh": "45_Runtime",
+      "kind": "flat",
+      "color": "#0a0d13",
+      "roughness": 0.35,
+      "metalness": 0.0,
+      "emissive": "#22dcd6",
+      "emissiveStrength": 6.0
+    },
+    {
+      "name": "Concrete_Podium",
+      "mesh": "45_Runtime",
+      "kind": "textured",
+      "texture": "concrete",
+      "tile": 1.3,
+      "color": "#808da2",
+      "roughness": [
+        0.48,
+        0.74
+      ],
+      "normalStrength": 0.9,
+      "metalness": 0.0
+    },
+    {
+      "name": "Niche_Glow",
+      "mesh": "45_Runtime",
+      "kind": "flat",
+      "color": "#0a0d13",
+      "roughness": 0.35,
+      "metalness": 0.0,
+      "emissive": "#22dcd6",
+      "emissiveStrength": 2.4
+    },
+    {
+      "name": "Exhibit_Edge",
+      "mesh": "45_Runtime",
+      "kind": "flat",
+      "color": "#171d27",
+      "roughness": 0.34,
+      "metalness": 0.85
+    },
+    {
+      "name": "Sculpt_Glow",
+      "mesh": "45_Runtime",
+      "kind": "flat",
+      "color": "#0a0d13",
+      "roughness": 0.35,
+      "metalness": 0.0,
+      "emissive": "#22dcd6",
+      "emissiveStrength": 4.4
+    },
+    {
+      "name": "Planet_Body",
+      "mesh": "45_Runtime",
+      "kind": "flat",
+      "color": "#ffffff",
+      "roughness": 0.82,
+      "metalness": 0.0
+    }
+  ],
+  "anchors": [
+    {
+      "name": "slot.01",
+      "position": [
+        -13.0,
+        2.4,
+        -12.75
+      ],
+      "rotationY": 1.570796
+    },
+    {
+      "name": "slot.02",
+      "position": [
+        13.0,
+        2.4,
+        -12.75
+      ],
+      "rotationY": -1.570796
+    },
+    {
+      "name": "slot.03",
+      "position": [
+        -13.0,
+        2.4,
+        -4.25
+      ],
+      "rotationY": 1.570796
+    },
+    {
+      "name": "slot.04",
+      "position": [
+        13.0,
+        2.4,
+        -4.25
+      ],
+      "rotationY": -1.570796
+    },
+    {
+      "name": "slot.05",
+      "position": [
+        -13.0,
+        2.4,
+        4.25
+      ],
+      "rotationY": 1.570796
+    },
+    {
+      "name": "slot.06",
+      "position": [
+        13.0,
+        2.4,
+        4.25
+      ],
+      "rotationY": -1.570796
+    },
+    {
+      "name": "slot.07",
+      "position": [
+        -13.0,
+        2.4,
+        12.75
+      ],
+      "rotationY": 1.570796
+    },
+    {
+      "name": "slot.08",
+      "position": [
+        13.0,
+        2.4,
+        12.75
+      ],
+      "rotationY": -1.570796
+    }
+  ],
+  "runtime": {
+    "collection": "45_Runtime",
+    "objects": [
+      {
+        "name": "display_art",
+        "parent": null
+      },
+      {
+        "name": "display_dev",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_0L",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_0L_core",
+        "parent": "hidden_block_0L"
+      },
+      {
+        "name": "hidden_block_0L_far",
+        "parent": "hidden_block_0L"
+      },
+      {
+        "name": "hidden_block_0L_glow",
+        "parent": "hidden_block_0L"
+      },
+      {
+        "name": "hidden_block_0L_glow_far",
+        "parent": "hidden_block_0L"
+      },
+      {
+        "name": "hidden_block_0R",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_0R_core",
+        "parent": "hidden_block_0R"
+      },
+      {
+        "name": "hidden_block_0R_far",
+        "parent": "hidden_block_0R"
+      },
+      {
+        "name": "hidden_block_0R_glow",
+        "parent": "hidden_block_0R"
+      },
+      {
+        "name": "hidden_block_0R_glow_far",
+        "parent": "hidden_block_0R"
+      },
+      {
+        "name": "hidden_block_1L",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_1L_core",
+        "parent": "hidden_block_1L"
+      },
+      {
+        "name": "hidden_block_1L_far",
+        "parent": "hidden_block_1L"
+      },
+      {
+        "name": "hidden_block_1L_glow",
+        "parent": "hidden_block_1L"
+      },
+      {
+        "name": "hidden_block_1L_glow_far",
+        "parent": "hidden_block_1L"
+      },
+      {
+        "name": "hidden_block_1R",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_1R_core",
+        "parent": "hidden_block_1R"
+      },
+      {
+        "name": "hidden_block_1R_far",
+        "parent": "hidden_block_1R"
+      },
+      {
+        "name": "hidden_block_1R_glow",
+        "parent": "hidden_block_1R"
+      },
+      {
+        "name": "hidden_block_1R_glow_far",
+        "parent": "hidden_block_1R"
+      },
+      {
+        "name": "hidden_block_2L",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_2L_core",
+        "parent": "hidden_block_2L"
+      },
+      {
+        "name": "hidden_block_2L_far",
+        "parent": "hidden_block_2L"
+      },
+      {
+        "name": "hidden_block_2L_glow",
+        "parent": "hidden_block_2L"
+      },
+      {
+        "name": "hidden_block_2L_glow_far",
+        "parent": "hidden_block_2L"
+      },
+      {
+        "name": "hidden_block_2R",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_2R_core",
+        "parent": "hidden_block_2R"
+      },
+      {
+        "name": "hidden_block_2R_far",
+        "parent": "hidden_block_2R"
+      },
+      {
+        "name": "hidden_block_2R_glow",
+        "parent": "hidden_block_2R"
+      },
+      {
+        "name": "hidden_block_2R_glow_far",
+        "parent": "hidden_block_2R"
+      },
+      {
+        "name": "hidden_block_niche_back",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_niche_glow_0",
+        "parent": null
+      },
+      {
+        "name": "hidden_block_niche_glow_1",
+        "parent": null
+      },
+      {
+        "name": "net_frame",
+        "parent": null
+      },
+      {
+        "name": "net_pulse_1",
+        "parent": "net_frame"
+      },
+      {
+        "name": "net_pulse_2",
+        "parent": "net_frame"
+      },
+      {
+        "name": "net_pulse_3",
+        "parent": "net_frame"
+      },
+      {
+        "name": "net_pulse_4",
+        "parent": "net_frame"
+      },
+      {
+        "name": "net_pulse_5",
+        "parent": "net_frame"
+      },
+      {
+        "name": "net_pulse_6",
+        "parent": "net_frame"
+      },
+      {
+        "name": "planet_world",
+        "parent": null
+      },
+      {
+        "name": "portal_block_0L",
+        "parent": null
+      },
+      {
+        "name": "portal_block_0L_core",
+        "parent": "portal_block_0L"
+      },
+      {
+        "name": "portal_block_0L_far",
+        "parent": "portal_block_0L"
+      },
+      {
+        "name": "portal_block_0L_glow",
+        "parent": "portal_block_0L"
+      },
+      {
+        "name": "portal_block_0L_glow_far",
+        "parent": "portal_block_0L"
+      },
+      {
+        "name": "portal_block_0R",
+        "parent": null
+      },
+      {
+        "name": "portal_block_0R_core",
+        "parent": "portal_block_0R"
+      },
+      {
+        "name": "portal_block_0R_far",
+        "parent": "portal_block_0R"
+      },
+      {
+        "name": "portal_block_0R_glow",
+        "parent": "portal_block_0R"
+      },
+      {
+        "name": "portal_block_0R_glow_far",
+        "parent": "portal_block_0R"
+      },
+      {
+        "name": "portal_block_1L",
+        "parent": null
+      },
+      {
+        "name": "portal_block_1L_core",
+        "parent": "portal_block_1L"
+      },
+      {
+        "name": "portal_block_1L_far",
+        "parent": "portal_block_1L"
+      },
+      {
+        "name": "portal_block_1L_glow",
+        "parent": "portal_block_1L"
+      },
+      {
+        "name": "portal_block_1L_glow_far",
+        "parent": "portal_block_1L"
+      },
+      {
+        "name": "portal_block_1R",
+        "parent": null
+      },
+      {
+        "name": "portal_block_1R_core",
+        "parent": "portal_block_1R"
+      },
+      {
+        "name": "portal_block_1R_far",
+        "parent": "portal_block_1R"
+      },
+      {
+        "name": "portal_block_1R_glow",
+        "parent": "portal_block_1R"
+      },
+      {
+        "name": "portal_block_1R_glow_far",
+        "parent": "portal_block_1R"
+      },
+      {
+        "name": "portal_block_2L",
+        "parent": null
+      },
+      {
+        "name": "portal_block_2L_core",
+        "parent": "portal_block_2L"
+      },
+      {
+        "name": "portal_block_2L_far",
+        "parent": "portal_block_2L"
+      },
+      {
+        "name": "portal_block_2L_glow",
+        "parent": "portal_block_2L"
+      },
+      {
+        "name": "portal_block_2L_glow_far",
+        "parent": "portal_block_2L"
+      },
+      {
+        "name": "portal_block_2R",
+        "parent": null
+      },
+      {
+        "name": "portal_block_2R_core",
+        "parent": "portal_block_2R"
+      },
+      {
+        "name": "portal_block_2R_far",
+        "parent": "portal_block_2R"
+      },
+      {
+        "name": "portal_block_2R_glow",
+        "parent": "portal_block_2R"
+      },
+      {
+        "name": "portal_block_2R_glow_far",
+        "parent": "portal_block_2R"
+      },
+      {
+        "name": "skill_art_1",
+        "parent": null
+      },
+      {
+        "name": "skill_art_2",
+        "parent": null
+      },
+      {
+        "name": "skill_art_3",
+        "parent": null
+      },
+      {
+        "name": "skill_art_4",
+        "parent": null
+      },
+      {
+        "name": "skill_art_5",
+        "parent": null
+      },
+      {
+        "name": "skill_art_6",
+        "parent": null
+      },
+      {
+        "name": "skill_dev_1",
+        "parent": null
+      },
+      {
+        "name": "skill_dev_2",
+        "parent": null
+      },
+      {
+        "name": "skill_dev_3",
+        "parent": null
+      },
+      {
+        "name": "skill_dev_4",
+        "parent": null
+      },
+      {
+        "name": "skill_dev_5",
+        "parent": null
+      },
+      {
+        "name": "skill_dev_6",
+        "parent": null
+      }
+    ],
+    "clips": [
+      {
+        "name": "HiddenWall",
+        "duration": 3.5,
+        "loop": false,
+        "scrub": true
+      },
+      {
+        "name": "Idle",
+        "duration": 20.0,
+        "loop": true,
+        "scrub": false
+      },
+      {
+        "name": "PortalWall",
+        "duration": 3.5,
+        "loop": false,
+        "scrub": true
+      }
+    ]
+  }
+}

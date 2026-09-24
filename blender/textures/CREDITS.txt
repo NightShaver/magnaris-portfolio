@@ -1,0 +1,19 @@
+Gescannte Oberflächen — Poly Haven (polyhaven.com), alle CC0.
+
+  grey_cartago_01          Marmor: Roughness und Normal
+  american_walnut_veneer   Nussbaum: die Sitzflächen der Bänke
+  concrete_floor_01        Beton: die Pflanzkübel
+
+Alle bei 2k über das Blender-MCP-Addon geladen und in 08_export.py für das Web
+verkleinert (Marmor 1k, Holz und Beton 512).
+
+  marble_neutral_Diffuse.jpg
+
+ist abgeleitet, nicht geladen: make_neutral_marble.py gradiert die Diffuse von
+grey_cartago_01 einmalig um. Der Scan ist ein dunkler Plattenboden mit
+terrakottafarbenen Reihen darin; entsättigt und im Wert angehoben trägt
+dieselbe Datei den weißen Marmor der Pfeiler und, dunkel getönt, den
+polierten Boden. Roughness und Normal bleiben das Original.
+
+Die Diffuse-Maps werden in 03_materials.py in den Wertebereich der Halle
+getönt; Roughness und Normal werden unverändert benutzt.
