@@ -10,6 +10,7 @@ import {
   HallEnvironment,
   HallMotion,
   RoomProbe,
+  HallEnvironmentBinding,
 } from "@/components/walkable/BakedHall";
 import {
   EntryGate,
@@ -22,7 +23,9 @@ import {
 } from "@/components/walkable/WalkableRoom";
 import manifest from "@/public/room/room.json";
 import { EXHIBIT, EXHIBIT_X, ROOM, SECTION } from "@/lib/roomLayout";
-import type { AimTarget } from "@/components/walkable/WalkableRoom";
+import { LiteFill } from "@/components/walkable/TourPlayer";
+import type { AimTarget } from "@/lib/aimTarget";
+import { type RoomTier, setRoomTier, useRoomTier } from "@/lib/roomQuality";
 
 /* ==========================================================================
    HALL REVIEW
@@ -245,6 +248,16 @@ export default function RaumPage() {
    * rectangle.
    */
   const arrival = useRef(0);
+  /**
+   * Which tier is on screen.
+   *
+   * The phone version is not a separate room, it is this one with half-size
+   * textures, no roughness maps, no reflection probe and no runtime lights.
+   * That makes it reviewable here, on a monitor, which is the only way to judge
+   * whether what it drops is worth what it saves — the alternative is holding a
+   * phone up next to a laptop and guessing.
+   */
+  const tier = useRoomTier();
 
   return (
     <main className="fixed inset-0 bg-ink-900">
@@ -270,8 +283,14 @@ export default function RaumPage() {
         <Suspense fallback={null}>
           <BakedHall />
           <HallMotion />
+          {/* The lite tier takes all seven runtime lights out of the room, so
+              the review has to put its one replacement back or everything that
+              moves — the wall blocks, the two sculptures, the mark — reviews as
+              a silhouette. */}
+          {tier === "lite" ? <LiteFill /> : null}
           <HallEnvironment />
           <RoomProbe />
+          <HallEnvironmentBinding />
           {furnished ? (
             <>
               <HallFittings />
@@ -334,6 +353,15 @@ export default function RaumPage() {
             className="mt-2 rounded-full border border-frost/15 bg-ink-900/85 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-frost/70 transition hover:border-frost/40"
           >
             {furnished ? "Nur Halle" : "Möbliert"}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setRoomTier((tier === "lite" ? "full" : "lite") as RoomTier)
+            }
+            className="mt-2 rounded-full border border-frost/15 bg-ink-900/85 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-frost/70 transition hover:border-frost/40"
+          >
+            {tier === "lite" ? "Lite (Handy)" : "Volle Qualität"}
           </button>
           <button
             type="button"

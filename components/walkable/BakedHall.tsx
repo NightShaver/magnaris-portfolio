@@ -10,6 +10,11 @@ import manifest from "@/public/room/room.json";
 import { asset } from "@/lib/assetPath";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { FRAME, NAVE_HALF_WIDTH, ROOM, SECTION } from "@/lib/roomLayout";
+import {
+  type RoomQuality,
+  type RoomTier,
+  useRoomQuality,
+} from "@/lib/roomQuality";
 
 /* ==========================================================================
    THE BAKED ROOM
@@ -58,26 +63,41 @@ export const HALL_URL = asset(`/room/${manifest.mesh}`);
  */
 const DRACO_PATH = asset("/draco/");
 
-/** Every texture the room needs, flattened into one record for useTexture. */
-const TEXTURE_URLS: Record<string, string> = {};
-for (const entry of manifest.meshes) {
-  TEXTURE_URLS[`lightmap:${entry.name}`] = asset(
-    `/room/${entry.lightmap.texture}`,
-  );
-  // The arcade carries its colour the same way it carries its light: baked
-  // into its own unwrap. Its marble is procedural and glTF cannot express a
-  // procedural, so the only route into the browser is an image — and since
-  // every column is unwrapped uniquely, that image has no tiling, no repeat
-  // and no seam.
-  const albedo = (entry as { albedo?: { texture: string } }).albedo;
-  if (albedo) {
-    TEXTURE_URLS[`albedo:${entry.name}`] = asset(`/room/${albedo.texture}`);
+/**
+ * Every texture the room needs, flattened into one record for useTexture.
+ *
+ * Built per tier rather than once, because the lite tier loads the same names
+ * out of public/room/lite/ at half the resolution. The record is memoised by
+ * directory: useTexture keys its cache on the object it is handed, so a fresh
+ * record every render would suspend forever.
+ */
+const URL_SETS = new Map<string, Record<string, string>>();
+
+function textureUrls(dir: string): Record<string, string> {
+  const cached = URL_SETS.get(dir);
+  if (cached) return cached;
+
+  const urls: Record<string, string> = {};
+  for (const entry of manifest.meshes) {
+    urls[`lightmap:${entry.name}`] = asset(`/room/${dir}${entry.lightmap.texture}`);
+    // The arcade carries its colour the same way it carries its light: baked
+    // into its own unwrap. Its marble is procedural and glTF cannot express a
+    // procedural, so the only route into the browser is an image — and since
+    // every column is unwrapped uniquely, that image has no tiling, no repeat
+    // and no seam.
+    const albedo = (entry as { albedo?: { texture: string } }).albedo;
+    if (albedo) {
+      urls[`albedo:${entry.name}`] = asset(`/room/${dir}${albedo.texture}`);
+    }
   }
-}
-for (const [setName, maps] of Object.entries(manifest.textures)) {
-  TEXTURE_URLS[`${setName}:map`] = asset(`/room/${maps.map}`);
-  TEXTURE_URLS[`${setName}:roughnessMap`] = asset(`/room/${maps.roughnessMap}`);
-  TEXTURE_URLS[`${setName}:normalMap`] = asset(`/room/${maps.normalMap}`);
+  for (const [setName, maps] of Object.entries(manifest.textures)) {
+    urls[`${setName}:map`] = asset(`/room/${dir}${maps.map}`);
+    urls[`${setName}:roughnessMap`] = asset(`/room/${dir}${maps.roughnessMap}`);
+    urls[`${setName}:normalMap`] = asset(`/room/${dir}${maps.normalMap}`);
+  }
+
+  URL_SETS.set(dir, urls);
+  return urls;
 }
 
 /**
@@ -94,6 +114,21 @@ for (const [setName, maps] of Object.entries(manifest.textures)) {
  * built at runtime keeps the default and gets its fill from the same map.
  */
 const ENV_INTENSITY = 0.16;
+
+/**
+ * What an unbaked surface takes from the environment on the lite tier.
+ *
+ * On the full tier those surfaces are modelled by seven runtime lights and the
+ * environment is only their fill, so it sits at 1. On lite the lights are gone
+ * and one dim directional is all that is left, so the environment has to carry
+ * the level instead of topping it up — otherwise the wall blocks, the two
+ * sculptures and the mark read as silhouettes against a room that is lit.
+ *
+ * It is safe to push here and nowhere else, because it reaches exactly the
+ * surfaces that have no lightmap. Everything baked is pinned to zero on this
+ * tier and cannot be brightened by it.
+ */
+const UNBAKED_FILL = 2.3;
 
 /* --------------------------------------------------------------------------
    room.json shapes. TypeScript widens the union over the materials array, so
@@ -159,6 +194,14 @@ export type HallAnchor = {
 };
 
 export type Hall = {
+  /**
+   * Which tier this hall was built for.
+   *
+   * Carried on the hall itself so a consumer can tell without asking the store
+   * a second time, and so a component that has a hall in hand cannot disagree
+   * with the materials it is looking at.
+   */
+  tier: RoomTier;
   scene: THREE.Group;
   anchors: HallAnchor[];
   /** Every material the room is built from, for the reflection probe. */
@@ -188,15 +231,26 @@ export type Hall = {
 type TextureSet = Record<string, THREE.Texture>;
 
 /**
- * Prepared rooms, keyed by the glTF scene.
+ * What reading the glTF found, keyed by the scene.
  *
- * useGLTF hands every caller the same scene object, and more than one
- * component wants it: the room renders it, the exhibits hang off its anchors.
- * Preparing it twice would build two sets of materials for one room, so the
- * result is cached against the scene itself and the second caller gets the
- * first one's work.
+ * Split from the materials, and the reason is a bug that only appears when the
+ * tier changes: the anchors, the runtime objects and the clips are found by
+ * name, and by the time a second tier is built those names have been changed.
+ * TeamExhibits renames the twelve skill bodies to "aim-target" so the picker can
+ * raycast against them, the hidden wall does the same with its sign — all of it
+ * reversible, all of it invisible until something looks the room up by name a
+ * second time and finds twelve nodes missing.
+ *
+ * Which is also the honest structure. A lightmap's resolution has nothing to do
+ * with where the hanging anchors are.
  */
-const prepared = new WeakMap<THREE.Group, Hall>();
+const surveyed = new WeakMap<THREE.Group, Survey>();
+
+/** The materials, keyed by scene and tier. */
+const dressed = new WeakMap<THREE.Group, Map<RoomTier, Dressing>>();
+
+type Survey = Pick<Hall, "anchors" | "clips" | "runtime" | "mixer">;
+type Dressing = { materials: THREE.MeshStandardMaterial[]; byName: Map<string, THREE.MeshStandardMaterial> };
 
 function configure(texture: THREE.Texture, anisotropy: number) {
   // glTF UVs have their origin at the top left. Textures loaded outside the
@@ -245,6 +299,7 @@ function buildMaterial(
   spec: RoomMaterial,
   textures: TextureSet,
   anisotropy: number,
+  quality: RoomQuality,
 ) {
   if (spec.kind === "baked") {
     // Colour and light on the same channel, both unique, nothing tiled. The
@@ -279,32 +334,42 @@ function buildMaterial(
     name: spec.name,
     color: new THREE.Color(spec.color),
     map: tiled(textures[`${set}:map`], repeat, THREE.SRGBColorSpace, anisotropy),
-    roughnessMap: tiled(
-      textures[`${set}:roughnessMap`], repeat, THREE.NoColorSpace, anisotropy,
-    ),
-    normalMap: tiled(
-      textures[`${set}:normalMap`], repeat, THREE.NoColorSpace, anisotropy,
-    ),
+    // The roughness map is a texture fetch on every fragment of every wall,
+    // and the lite tier is drawing a 488 px wide picture of a forty metre
+    // hall. It goes, and the scalar underneath it carries the surface: that
+    // number is a real value out of the same scan, so what is lost is the
+    // variation and not the level.
+    //
+    // The normal map stays. Without it the marble is a flat grey field and the
+    // fluting on the columns disappears, which is the difference between a
+    // photograph of stone and a stone-coloured rectangle.
+    roughnessMap: quality.roughnessMaps
+      ? tiled(textures[`${set}:roughnessMap`], repeat, THREE.NoColorSpace, anisotropy)
+      : null,
+    normalMap: quality.normalMaps
+      ? tiled(textures[`${set}:normalMap`], repeat, THREE.NoColorSpace, anisotropy)
+      : null,
     metalness: spec.metalness,
     // Blender remapped the scanned roughness into [min, max]; three multiplies
     // the map instead of remapping it, so the top of the range is the factor
     // and the scan's own variation rides underneath it.
-    roughness: spec.roughness[1],
+    //
+    // With no map to multiply, the top of the range on its own would read as
+    // the whole surface at its roughest, so without one the middle is taken.
+    roughness: quality.roughnessMaps
+      ? spec.roughness[1]
+      : (spec.roughness[0] + spec.roughness[1]) / 2,
   });
   const strength = spec.normalStrength ?? 0.5;
   material.normalScale.set(strength, strength);
   return withEmission(material, spec);
 }
 
-function prepare(
-  scene: THREE.Group,
+function dress(
   textures: TextureSet,
   anisotropy: number,
-  animations: THREE.AnimationClip[],
-): Hall {
-  const cached = prepared.get(scene);
-  if (cached) return cached;
-
+  quality: RoomQuality,
+): Dressing {
   const lightMaps = new Map<string, THREE.Texture>();
   for (const entry of manifest.meshes) {
     const lightMap = configure(textures[`lightmap:${entry.name}`], anisotropy);
@@ -318,7 +383,7 @@ function prepare(
 
   const byName = new Map<string, THREE.MeshStandardMaterial>();
   for (const spec of MATERIALS) {
-    const material = buildMaterial(spec, textures, anisotropy);
+    const material = buildMaterial(spec, textures, anisotropy, quality);
     const lightMap = lightMaps.get(spec.mesh);
     const intensity = manifest.meshes.find((m) => m.name === spec.mesh)
       ?.lightmap.intensity;
@@ -330,26 +395,45 @@ function prepare(
     // ENV_INTENSITY has always said and what the code did not do: everything
     // got it, including the sculptures and the wall blocks, which have no
     // lightmap and nothing else to light them. Those keep the full map.
-    material.envMapIntensity = lightMap ? ENV_INTENSITY : 1;
+    //
+    // On the lite tier there is no probe, and the number here is not what
+    // decides the matter: see HallEnvironmentBinding below. A material with no
+    // envMap of its own falls back to scene.environment, and that path is
+    // scaled by scene.environmentIntensity rather than by this field — so a
+    // zero written here is silently ignored. The binding component gives every
+    // unbaked surface an explicit map instead, which is what makes this number
+    // mean something again.
+    material.envMapIntensity = quality.probe
+      ? lightMap
+        ? ENV_INTENSITY
+        : 1
+      : lightMap
+        ? 0
+        : UNBAKED_FILL;
     byName.set(spec.name, material);
   }
 
-  // See `yawOnLoad` in room.json: the export negates depth, so the room
-  // arrives back to front. Turning it here rather than in Blender keeps the
-  // glTF honest about its own axes.
+  return { materials: [...byName.values()], byName };
+}
+
+/**
+ * Read the glTF: where things are, what moves, and what the clips are called.
+ *
+ * Runs once per scene, before anything has had a chance to rename a node.
+ */
+function survey(scene: THREE.Group, animations: THREE.AnimationClip[]): Survey {
+  const existing = surveyed.get(scene);
+  if (existing) return existing;
+
+  // See `yawOnLoad` in room.json: the export negates depth, so the room arrives
+  // back to front. Turning it here rather than in Blender keeps the glTF honest
+  // about its own axes.
+  //
+  // It has to happen before the anchors are read, and that is not a style
+  // point: an anchor is decomposed out of its world matrix, and a world matrix
+  // computed before this line puts all eight hanging slots on the wrong side of
+  // the hall.
   scene.rotation.y = manifest.yawOnLoad;
-
-  scene.traverse((object) => {
-    const mesh = object as THREE.Mesh;
-    if (!mesh.isMesh) return;
-    const source = mesh.material as THREE.Material;
-    const built = byName.get(source.name);
-    if (built) mesh.material = built;
-    // Everything that casts a shadow in this room already did so in Cycles.
-    mesh.castShadow = false;
-    mesh.receiveShadow = false;
-  });
-
   scene.updateMatrixWorld(true);
 
   // The empties are called "slot.01" in Blender and in room.json, and they do
@@ -405,16 +489,64 @@ function prepare(
     if (object) runtime.set(entry.name, object);
   }
 
-  const hall: Hall = {
-    scene,
+  const found: Survey = {
     anchors,
-    materials: [...byName.values()],
     clips,
     runtime,
     mixer: new THREE.AnimationMixer(scene),
   };
-  prepared.set(scene, hall);
-  return hall;
+  surveyed.set(scene, found);
+  return found;
+}
+
+/**
+ * The room, dressed for one tier.
+ *
+ * Both halves are cached, so the second component to ask for the hall gets the
+ * first one's work, and switching tier rebuilds the materials without reading
+ * the scene graph again.
+ */
+function prepare(
+  scene: THREE.Group,
+  textures: TextureSet,
+  anisotropy: number,
+  animations: THREE.AnimationClip[],
+  quality: RoomQuality,
+): Hall {
+  const found = survey(scene, animations);
+
+  let byTier = dressed.get(scene);
+  if (!byTier) {
+    byTier = new Map();
+    dressed.set(scene, byTier);
+  }
+  let dressing = byTier.get(quality.tier);
+  if (!dressing) {
+    dressing = dress(textures, anisotropy, quality);
+    byTier.set(quality.tier, dressing);
+  }
+
+  // Re-run on every tier, because this is what puts the new materials on the
+  // meshes. Matching is by the material's own name, which buildMaterial copies
+  // from the manifest, so a mesh already carrying a lite material is found
+  // again when the full one is put back.
+  scene.traverse((object) => {
+    const mesh = object as THREE.Mesh;
+    if (!mesh.isMesh) return;
+    const source = mesh.material as THREE.Material;
+    const built = dressing.byName.get(source.name);
+    if (built) mesh.material = built;
+    // Everything that casts a shadow in this room already did so in Cycles.
+    mesh.castShadow = false;
+    mesh.receiveShadow = false;
+  });
+
+  return {
+    tier: quality.tier,
+    scene,
+    materials: dressing.materials,
+    ...found,
+  };
 }
 
 /**
@@ -424,18 +556,35 @@ function prepare(
  * loaded scene and every later caller gets the same object back.
  */
 export function useHall(): Hall {
+  const quality = useRoomQuality();
   const { scene, animations } = useGLTF(HALL_URL, DRACO_PATH) as unknown as {
     scene: THREE.Group;
     animations: THREE.AnimationClip[];
   };
-  const textures = useTexture(TEXTURE_URLS) as unknown as TextureSet;
+  const textures = useTexture(
+    textureUrls(quality.textureDir),
+  ) as unknown as TextureSet;
   const anisotropy = useThree((state) =>
     state.gl.capabilities.getMaxAnisotropy(),
   );
 
+  // Eight on both tiers, and the lite tier is not allowed to economise here.
+  //
+  // It was four lower for one build, on the reasoning that anisotropic
+  // filtering is a per-sample cost on the largest surfaces in the room. It is,
+  // and those surfaces are the floor and the nave ceiling seen at a grazing
+  // angle down forty metres — which is not a detail question but a correctness
+  // one, because what they carry is a lightmap, and a lightmap is an atlas.
+  //
+  // Fewer taps means the hardware picks a higher mip level to cover the same
+  // stretched footprint, and a higher mip level in an atlas is charts averaged
+  // with their neighbours. The dark floor took its brightness from whatever
+  // was packed next to it and came out a flat, pale grey with the bake's whole
+  // gradient gone. Eight taps is what stops that, and it is cheap compared to
+  // the lightmap being wrong.
   return useMemo(
-    () => prepare(scene, textures, Math.min(8, anisotropy), animations),
-    [scene, textures, anisotropy, animations],
+    () => prepare(scene, textures, Math.min(8, anisotropy), animations, quality),
+    [scene, textures, anisotropy, animations, quality],
   );
 }
 
@@ -550,11 +699,17 @@ const PROBE_FRAME = 30;
  */
 export function RoomProbe() {
   const { materials } = useHall();
+  const quality = useRoomQuality();
   const gl = useThree((state) => state.gl);
   const scene = useThree((state) => state.scene);
   const frames = useRef(0);
 
   useFrame(() => {
+    // Not on lite. Six 512 faces and a PMREM pass is a stall a phone shows,
+    // and what it buys is a sheen at 0.4 strength whose parallax is only
+    // correct for a viewer standing where the probe stood — which a
+    // station-bound visitor never is.
+    if (!quality.probe) return;
     frames.current += 1;
     if (frames.current !== PROBE_FRAME) return;
 
@@ -591,6 +746,83 @@ export function RoomProbe() {
 }
 
 /**
+ * Hand the environment out by name instead of letting it in through the back.
+ *
+ * <Environment> sets scene.environment, and three.js uses that for any material
+ * that has no envMap of its own. What it does *not* do on that path is honour
+ * material.envMapIntensity: the scene fallback is scaled by
+ * scene.environmentIntensity, a single global number. So a baked wall written
+ * to zero here took the full hand-built fill anyway, and the whole hall — the
+ * floor and the nave ceiling worst of all, because they are the largest
+ * surfaces and the ones seen at a grazing angle — came out evenly lit and pale,
+ * with the bake's gradient buried underneath it. On the full tier the probe
+ * hides the problem by giving every material an explicit map; on lite there is
+ * no probe, and the problem is the whole picture.
+ *
+ * So the fallback is switched off and the map is assigned by hand, to exactly
+ * the surfaces that should have it: everything with no lightmap. That is the
+ * six wall blocks at each end, the two sculptures, the planets and the mark —
+ * the things that move, and therefore the things Cycles could not bake. A baked
+ * surface gets no environment at all, which is both correct and cheaper: with
+ * no envMap the shader compiled for it has no image-based lighting in it.
+ *
+ * Runs on a few early frames rather than once, because the materials it is
+ * looking for do not all exist yet on the first: TeamExhibits swaps its planet
+ * materials in after the glTF is in the scene.
+ */
+const BINDING_FRAMES = new Set([4, 20, 60, 140]);
+
+export function HallEnvironmentBinding() {
+  const quality = useRoomQuality();
+  const scene = useThree((state) => state.scene);
+  const frames = useRef(0);
+  const touched = useRef<THREE.MeshStandardMaterial[]>([]);
+
+  // The fallback itself is switched off by <HallEnvironment>, which owns the
+  // <Environment> and therefore owns scene.environmentIntensity. What is left
+  // here is undoing the assignments on the way out, so switching tier on the
+  // review page does not leave the full tier's materials holding a map the
+  // lite tier gave them.
+  useEffect(() => {
+    if (quality.probe) return undefined;
+    const bound = touched;
+    return () => {
+      for (const material of bound.current) {
+        material.envMap = null;
+        material.needsUpdate = true;
+      }
+      bound.current = [];
+    };
+  }, [quality.probe]);
+
+  useFrame(() => {
+    if (quality.probe) return;
+    frames.current += 1;
+    if (!BINDING_FRAMES.has(frames.current)) return;
+    if (!scene.environment) return;
+
+    scene.traverse((object) => {
+      const mesh = object as THREE.Mesh;
+      if (!mesh.isMesh) return;
+      const list = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+      for (const entry of list) {
+        const material = entry as THREE.MeshStandardMaterial;
+        if (!material || !("envMapIntensity" in material)) continue;
+        // Baked surfaces carry their light in the atlas and take nothing here.
+        if (material.lightMap) continue;
+        if (material.envMap === scene.environment) continue;
+        material.envMap = scene.environment;
+        material.envMapIntensity = UNBAKED_FILL;
+        material.needsUpdate = true;
+        touched.current.push(material);
+      }
+    });
+  });
+
+  return null;
+}
+
+/**
  * The reflection the marble sees.
  *
  * Not a light source: every bounce in this room is already in the lightmaps,
@@ -606,8 +838,26 @@ export function RoomProbe() {
  * doors, the picture plates.
  */
 export function HallEnvironment() {
+  const quality = useRoomQuality();
+
   return (
-    <Environment resolution={128}>
+    <Environment
+      resolution={128}
+      /*
+        Zero on the lite tier, and that is the switch that makes the whole
+        scheme work. scene.environment reaches every material that has no
+        envMap of its own, and on that path three scales it by this single
+        number rather than by each material's envMapIntensity — so with it at
+        one, a baked wall written to zero took the full fill anyway and the
+        hall came out evenly lit and pale. Off here, handed out by name in
+        HallEnvironmentBinding.
+
+        It is set through the prop rather than on the scene, because
+        <Environment> writes scene.environmentIntensity from it on every mount
+        and would overwrite anything assigned beside it.
+      */
+      environmentIntensity={quality.probe ? 1 : 0}
+    >
       <Lightformer
         form="rect"
         intensity={1.1}
@@ -656,4 +906,20 @@ export function HallEnvironment() {
 // the canvas needs them. The mesh alone is not enough: a hall with no lightmap
 // suspends just as hard as a hall with no mesh.
 useGLTF.preload(HALL_URL, DRACO_PATH);
-useTexture.preload(Object.values(TEXTURE_URLS));
+
+// The textures start downloading too, and which set is not a detail: the full
+// one is 2.4 MB and the lite one is 0.5 MB, and a phone that fetched the wrong
+// one would have paid for the whole difference before the room opened.
+//
+// The tier is not resolved yet — it is decided in an effect, and this runs when
+// the module is imported — so the same signal it will use is read directly. A
+// coarse pointer is a touch device, and a touch device gets the tour and the
+// lite tier. The case this gets wrong is a low-memory desktop, which preloads
+// the full set and is then handed lite: a wasted download on the one kind of
+// machine that can afford one.
+const COARSE =
+  typeof window !== "undefined" &&
+  typeof window.matchMedia === "function" &&
+  window.matchMedia("(pointer: coarse)").matches;
+
+useTexture.preload(Object.values(textureUrls(COARSE ? "lite/" : "")));

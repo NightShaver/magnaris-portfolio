@@ -31,9 +31,10 @@ export function Hero() {
   const section = useRef<HTMLElement>(null);
   const reducedMotion = usePrefersReducedMotion();
   /**
-   * A phone has no Pointer Lock API, so the room cannot be looked around in.
-   * The invitation is withdrawn here rather than inside the overlay: a door
-   * that opens onto an apology is worse than a door marked desktop only.
+   * Which controls this device gets, which is all the hero needs it for: the
+   * badge on the invitation. The invitation itself is no longer conditional —
+   * a phone has no Pointer Lock API and therefore no mouse look, and what it
+   * gets instead is a tour rather than an apology.
    */
   const walkable = useWalkableSupport();
   /**
@@ -155,31 +156,24 @@ export function Hero() {
                 <span className="absolute inset-0 -translate-x-full bg-teal transition-transform duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] group-hover:translate-x-0" />
               </a>
 
-              {walkable === "unsupported" ? (
-                <span className="flex items-center gap-3 rounded-full border border-line/60 px-7 py-3.5 text-[13px] tracking-wide text-steel">
-                  <span className="relative flex h-2 w-2 items-center justify-center">
-                    <span className="absolute h-2 w-2 rounded-full border border-steel/60" />
-                  </span>
-                  Raum betreten
-                  <span className="tag text-[9px] text-steel/70">
-                    NUR AM DESKTOP
-                  </span>
+              {/* One door for both devices now. The badge is the only thing
+                  that differs, because what is behind it differs: a phone gets
+                  a tour of standing points rather than a walk, and saying so
+                  before the tap is better than surprising someone with it
+                  after. */}
+              <button
+                type="button"
+                data-walkable-trigger
+                className="group flex items-center gap-3 rounded-full border border-line px-7 py-3.5 text-[13px] tracking-wide transition-colors duration-500 hover:border-violet hover:text-violet"
+              >
+                <span className="relative flex h-2 w-2 items-center justify-center">
+                  <span className="absolute h-2 w-2 rounded-full border border-violet transition-transform duration-500 group-hover:scale-150" />
                 </span>
-              ) : (
-                <button
-                  type="button"
-                  data-walkable-trigger
-                  className="group flex items-center gap-3 rounded-full border border-line px-7 py-3.5 text-[13px] tracking-wide transition-colors duration-500 hover:border-violet hover:text-violet"
-                >
-                  <span className="relative flex h-2 w-2 items-center justify-center">
-                    <span className="absolute h-2 w-2 rounded-full border border-violet transition-transform duration-500 group-hover:scale-150" />
-                  </span>
-                  Raum betreten
-                  <span className="tag text-[9px] text-steel/70 group-hover:text-violet">
-                    EXPERIMENTAL
-                  </span>
-                </button>
-              )}
+                Raum betreten
+                <span className="tag text-[9px] text-steel/70 group-hover:text-violet">
+                  {walkable === "touch" ? "TOUR" : "EXPERIMENTAL"}
+                </span>
+              </button>
             </motion.div>
           </motion.div>
 

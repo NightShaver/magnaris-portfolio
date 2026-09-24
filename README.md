@@ -479,6 +479,103 @@ unbrauchbar ist: nicht auf dem Handy, nicht per Test-Screenshot, nicht an einem
 festen Standpunkt zum Vergleich zweier Bakes. Nach jedem Neubacken hier
 hineinschauen.
 
+## Der Raum auf dem Handy
+
+Der begehbare Raum war lange Desktop-only, und der Grund war kein
+Leistungsproblem: die Pointer-Lock-API gibt es auf iOS Safari nicht, und auf
+Android nur mit echter Maus. Ohne Mauszeigersperre kein Umsehen, ohne Umsehen
+kein Gehen — ein Besucher mit Daumen-Stick und fester Blickrichtung steht in
+einer vierzig Meter langen Halle und kommt nirgendwo an.
+
+Was das Handy stattdessen bekommt, ist nicht eine schlechtere Version des
+Gehens, sondern das, wofür das Gehen da war. Ein Galeriebesuch besteht daraus,
+nacheinander vor einzelnen Dingen zu stehen. Also gibt es dreizehn Standpunkte
+(`lib/tourStations.ts`), ein Tippen führt von einem zum nächsten, und ein Ziehen
+sieht sich von dort um.
+
+**Eine Station ist keine Kameraposition.** Eine Position stimmt nur für ein
+Sichtfeld, und dieser Raum wird auf einem Bildschirm betrachtet, der eben noch
+390 Punkte breit war und im nächsten Moment 844. Eine Station sagt deshalb, was
+angesehen wird, wie breit das ist und von welcher Seite — den Abstand rechnet
+der Spieler aus dem aktuellen Seitenverhältnis. Ein 5,14 m breites Bild füllt
+damit hoch wie quer denselben Anteil des Bildes. Wo der Raum den nötigen Abstand
+nicht hergibt — ein breites Bild im Hochformat, mit 5 m Seitenschiff dahinter —
+sieht man weniger davon und bekommt den Hinweis, das Gerät zu drehen. Das ist
+die ehrliche Auflösung: quer passt es, hoch nicht, und keine Rechnung ändert
+daran etwas.
+
+**Die Wandstationen kommen aus den Ankern, nicht aus dem Layout.**
+`lib/roomLayout` sagt, Slot 01 hängt links. Im geladenen glTF hängt er rechts:
+`08_export.py` negiert die Tiefe, `BakedHall` dreht den Raum um eine halbe
+Umdrehung zurück, und eine halbe Umdrehung um Y spiegelt x mit. Das Gebäude ist
+symmetrisch, es fällt also nicht auf — welches Projekt an welcher Wand hängt,
+ist es aber nicht. Eine aus dem Layout gebaute Station stand vor dem Nachbarcase
+und nannte es beim falschen Namen.
+
+**Ein Tap, zwei Bedeutungen.** Auf ein entferntes Bild getippt, geht die Tour
+zur Station davor; noch einmal getippt, öffnet sie das Projekt. Das ist nicht
+nur die bessere Interaktion — es ist die einzige, die funktioniert: ein neuer
+Tab gilt nur so lange als vom Nutzer ausgelöst, wie der auslösende Tap noch auf
+dem Stack liegt, und das schließt aus, die Entscheidung einen Render später zu
+treffen.
+
+### Die zwei Stufen
+
+`lib/roomQuality.ts` hält beide Profile. Es ist derselbe Raum, dieselbe
+Geometrie, derselbe Bake — nur wird auf `lite` weniger pro Fragment aufgelöst
+und weniger im Speicher gehalten.
+
+| | voll | lite |
+|---|---|---|
+| Texturen im GPU-Speicher | 72 MB | 19 MB |
+| Download `public/room/` | 2,4 MB | 0,5 MB |
+| Lichter im Shader | 7 | 2 |
+| Texturgriffe je Fragment (gebacken) | 5 | 3 |
+| Pixelverhältnis | bis 1,75 | bis 1,25 |
+| Bilder je Sekunde | frei | 30, im Stand 5 |
+
+Der Speicher ist der Punkt, an dem ein Handy nicht langsamer wird, sondern
+aufgibt: eine Textur im GPU-Speicher ist unkomprimiertes RGBA plus Mip-Kette,
+und iOS Safari wirft bei 72 MB plus WebGL-Kontext den Tab weg. Den kleineren
+Satz schreibt `npm run room:lite` nach `public/room/lite/` — nach jedem Export
+aus Blender neu laufen lassen, die Ausgabe ist eingecheckt.
+
+**Lichter sind teuer, auch weit weg.** three.js kompiliert die Anzahl der
+Lichter in der Szene in jeden Shader. Die sieben Laufzeitlichter — für die
+Wandblöcke, die beiden Skulpturen und das Zeichen, also alles, was sich bewegt
+und deshalb keine Lightmap hat — werden auf jedem Fragment jeder Wand des
+Gebäudes ausgewertet, vierzig Meter vom nächsten entfernt. Auf `lite` sind es
+zwei, und beide sind Spots mit kurzer Reichweite. Der erste Versuch war ein
+einzelnes Directional-Licht: das hat keinen Abfall, und hell genug, um einen
+Betonblock zu modellieren, hellt es auch jede gebackene Wand und den ganzen
+Boden auf, der direkt hineinsieht. Die Halle war gleichmäßig ausgeleuchtet und
+flach — genau das, wogegen die 512 Samples in Cycles gerechnet wurden.
+
+**`material.envMapIntensity` gilt nicht für `scene.environment`.** Das war der
+teuerste Fehler in diesem Umbau. `<Environment>` setzt `scene.environment`, und
+three benutzt das für jedes Material ohne eigene `envMap` — skaliert aber über
+`scene.environmentIntensity`, eine einzige globale Zahl, nicht über das Feld am
+Material. Eine auf null gesetzte gebackene Wand nahm die volle Füllung trotzdem.
+Auf der vollen Stufe fällt das nicht auf, weil die Reflexionsprobe jedem
+Material eine eigene Map gibt; auf `lite` gibt es keine Probe, und die Folge war
+die gesamte Halle: blass, gleichmäßig, der Bake-Verlauf darunter begraben.
+`HallEnvironmentBinding` schaltet den Rückfallweg ab und verteilt die Map
+namentlich — an alles ohne Lightmap, an nichts mit einer.
+
+**Anisotrope Filterung ist auf einer Lightmap keine Detailfrage.** Sie stand
+kurzzeitig auf 2 statt 8, mit dem Argument, das koste ja pro Abtastung. Boden
+und Mittelschiffdecke sieht man über vierzig Meter streifend, die Hardware wählt
+bei weniger Abtastungen eine höhere Mip-Stufe für denselben gestreckten
+Fußabdruck — und eine höhere Mip-Stufe in einem Atlas ist ein Chart, gemittelt
+mit seinen Nachbarn. Der dunkle Boden bezog seine Helligkeit aus dem, was neben
+ihm gepackt lag.
+
+**Messen geht nur auf dem Gerät.** `?fps=1` blendet im HUD Bildrate, Stufe und
+Pixelverhältnis ein. Ein Testbrowser auf dem Desktop rendert die Halle in
+Software und sagt über ein Handy nichts. Zwei weitere Schalter für die Prüfung:
+`?controls=touch` erzwingt die Tour auf dem Desktop, `?quality=lite` die kleine
+Stufe.
+
 ## Deployment
 
 Die Seite hat keine Serverseite: keine Route Handler, keine Server Actions,

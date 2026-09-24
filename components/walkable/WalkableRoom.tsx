@@ -25,6 +25,7 @@ import {
   HallEnvironment,
   HallMotion,
   RoomProbe,
+  HallEnvironmentBinding,
   useHall,
 } from "@/components/walkable/BakedHall";
 import { CASES, MEMBERS } from "@/lib/site";
@@ -62,6 +63,18 @@ import { EASE_BRAND } from "@/lib/motion";
 import { useRoomAmbience } from "@/lib/useRoomAmbience";
 import { usePrefersReducedMotion } from "@/lib/useReducedMotion";
 import { useWalkableSupport } from "@/lib/useWalkableSupport";
+import type { AimTarget } from "@/lib/aimTarget";
+import { useRoomQuality, useTierFromProfile } from "@/lib/roomQuality";
+import { usePowerProfile } from "@/lib/useLowPower";
+import {
+  FrameCadence,
+  LiteFill,
+  StationMarkers,
+  TourPlayer,
+  type TourStatus,
+  fovFor,
+} from "@/components/walkable/TourPlayer";
+import { STATIONS, isCramped } from "@/lib/tourStations";
 
 /* ==========================================================================
    THE WALKABLE ROOM
@@ -589,6 +602,7 @@ const PORTAL_RESPONSE = 3.4;
 
 export function EntryGate({ progress }: { progress: React.RefObject<number> }) {
   const hall = useHall();
+  const quality = useRoomQuality();
   const opening = useRef(0);
   const wash = useMemo(() => new THREE.Object3D(), []);
   const halfD = ROOM.depth / 2;
@@ -644,29 +658,33 @@ export function EntryGate({ progress }: { progress: React.RefObject<number> }) {
         falloff runs the full height of the wall with no edge in it.
       */}
       <primitive object={wash} position={[0, 1.3, halfD - 0.05]} />
-      <spotLight
-        position={[0, 6.9, halfD - 8.4]}
-        target={wash}
-        angle={0.52}
-        penumbra={1}
-        intensity={260}
-        distance={26}
-        decay={1.7}
-        color="#cfe0ea"
-      />
+      {quality.tier === "full" && (
+        <spotLight
+          position={[0, 6.9, halfD - 8.4]}
+          target={wash}
+          angle={0.52}
+          penumbra={1}
+          intensity={260}
+          distance={26}
+          decay={1.7}
+          color="#cfe0ea"
+        />
+      )}
 
       {/*
         And one from the approach side, which the bake cannot reach at all:
         there is no geometry out there to bounce off, so without this the
         visitor flies three seconds towards a black rectangle.
       */}
-      <pointLight
-        position={[0, 2.4, halfD + 3.2]}
-        intensity={26}
-        distance={11}
-        decay={1.6}
-        color="#bccddc"
-      />
+      {quality.tier === "full" && (
+        <pointLight
+          position={[0, 2.4, halfD + 3.2]}
+          intensity={26}
+          distance={11}
+          decay={1.6}
+          color="#bccddc"
+        />
+      )}
     </group>
   );
 }
@@ -697,6 +715,7 @@ const WALL_OPEN = 0.62;
 
 export function HiddenWall() {
   const hall = useHall();
+  const quality = useRoomQuality();
   const sign = useRef<THREE.Mesh>(null);
   const opening = useRef(0);
 
@@ -795,16 +814,18 @@ export function HiddenWall() {
   return (
     <group>
       <primitive object={washTarget} />
-      <spotLight
-        position={[0, 6.6, -halfD + 6.2]}
-        target={washTarget}
-        angle={0.62}
-        penumbra={1}
-        intensity={300}
-        distance={24}
-        decay={1.75}
-        color="#cfe0ea"
-      />
+      {quality.tier === "full" && (
+        <spotLight
+          position={[0, 6.6, -halfD + 6.2]}
+          target={washTarget}
+          angle={0.62}
+          penumbra={1}
+          intensity={300}
+          distance={24}
+          decay={1.75}
+          color="#cfe0ea"
+        />
+      )}
 
       <mesh
         ref={sign}
@@ -839,13 +860,15 @@ export function HiddenWall() {
         a real one anyway — the fitting, and a surface that is simply brighter
         than the room outside it.
       */}
-      <pointLight
-        position={[0, HIDDEN_WALL.height / 2, nicheZ + 1.0]}
-        intensity={13}
-        distance={5.5}
-        decay={1.5}
-        color="#9fc4cc"
-      />
+      {quality.tier === "full" && (
+        <pointLight
+          position={[0, HIDDEN_WALL.height / 2, nicheZ + 1.0]}
+          intensity={13}
+          distance={5.5}
+          decay={1.5}
+          color="#9fc4cc"
+        />
+      )}
     </group>
   );
 }
@@ -855,21 +878,12 @@ export function HiddenWall() {
    pointing. The centre ray is cast every few frames; a hit arms the click
    handler in the overlay, which opens the case in a new tab.
    ------------------------------------------------------------------------- */
-export type AimTarget = {
-  label: string;
-  /** External case link, opened in a new tab. */
-  url?: string;
-  /** In-page action instead of a link. */
-  action?: "contact";
-  /**
-   * A skill on one of the founder exhibits: "art:2", "dev:5".
-   *
-   * Aimed at rather than clicked. A planet is not a link — looking at it is
-   * the whole interaction, and what it returns is its name in the air beside
-   * it. The key is also what tells the label which body to hang from.
-   */
-  skill?: string;
-};
+/**
+ * Re-exported so the review page and anything else that already imports it from
+ * here keeps working. The definition moved to lib/aimTarget because the touch
+ * picker produces the same shape and this module imports that one.
+ */
+export type { AimTarget };
 
 export function GazePicker({ onAim }: { onAim: (target: AimTarget | null) => void }) {
   const { camera, scene } = useThree();
@@ -1149,6 +1163,7 @@ const LABEL_SCALE = 0.15;
 const ORIGIN = new THREE.Vector3();
 
 export function TeamExhibits({ aim }: { aim?: AimTarget | null }) {
+  const quality = useRoomQuality();
   const hall = useHall();
   const halfD = ROOM.depth / 2;
 
@@ -1339,26 +1354,30 @@ export function TeamExhibits({ aim }: { aim?: AimTarget | null }) {
       {spots.map(({ key, x, target }) => (
         <group key={key}>
           <primitive object={target} />
-          <spotLight
-            position={[x, 6.4, -halfD + EXHIBIT.standoff - 0.9]}
-            target={target}
-            angle={0.3}
-            penumbra={0.55}
-            intensity={95}
-            distance={9}
-            decay={1.5}
-            color="#dbe7f0"
-          />
+          {quality.tier === "full" && (
+            <spotLight
+              position={[x, 6.4, -halfD + EXHIBIT.standoff - 0.9]}
+              target={target}
+              angle={0.3}
+              penumbra={0.55}
+              intensity={95}
+              distance={9}
+              decay={1.5}
+              color="#dbe7f0"
+            />
+          )}
           {/* The podium's light channel, throwing up onto what hovers over it.
               Short range and cyan: it is the groove in the concrete, not a
               second key light. */}
-          <pointLight
-            position={[x, EXHIBIT.podiumHeight - 0.16, -halfD + EXHIBIT.standoff]}
-            intensity={5.5}
-            distance={2.6}
-            decay={1.7}
-            color={BRAND_COLORS.teal}
-          />
+          {quality.tier === "full" && (
+            <pointLight
+              position={[x, EXHIBIT.podiumHeight - 0.16, -halfD + EXHIBIT.standoff]}
+              intensity={5.5}
+              distance={2.6}
+              decay={1.7}
+              color={BRAND_COLORS.teal}
+            />
+          )}
         </group>
       ))}
     </group>
@@ -1442,6 +1461,7 @@ function SkillHalo({
    Centrepiece — the extruded mark on a plinth, same geometry as the hero.
    ------------------------------------------------------------------------- */
 export function MarkPlinth() {
+  const quality = useRoomQuality();
   const mark = useRef<THREE.Group>(null);
 
   const parts = useMemo(
@@ -1556,6 +1576,18 @@ export function MarkPlinth() {
           of the old 6.4 m. That lengthened the throw from 3.5 to 5.1 m, and at
           decay 1.8 the piece arrived at half the light it had — hence the
           intensity, which is the old one times (5.1/3.5)^1.8. */}
+      {/* On both tiers, unlike the other six.
+
+          A spot with a thirteen metre throw and a decay of 1.8 has run out
+          before it reaches anything baked, so it costs the room's own lighting
+          nothing — which is exactly what the lite tier's first attempt at a
+          replacement, one directional light, could not manage: a directional
+          has no falloff, and turned up far enough to model the mark it also
+          added that much to every wall and to the whole floor, which faces
+          straight into it. The bake stopped reading as light in a room.
+
+          So the lite tier keeps two lights rather than none, and both of them
+          are local. This is one; the other is at the far end, in LiteFill. */}
       <primitive object={spotTarget} position={[0, 2.3, 0]} />
       <spotLight
         position={[0, SECTION.naveHeight - 0.6, 0]}
@@ -1594,13 +1626,102 @@ export function WalkableRoom() {
   const [locked, setLocked] = useState(false);
   const [lockReady, setLockReady] = useState(true);
   /**
-   * Last line of defence. The triggers already disappear on a touch device,
-   * but the room must also refuse to open if the answer changes underneath
-   * it — switching on the DevTools device toolbar does exactly that.
+   * Which set of controls this device gets.
+   *
+   * "pointer" is the room as it was: pointer lock, WASD, mouse look. "touch" is
+   * the tour — thirteen standing points, a tap to move, a drag to look — and it
+   * exists because iOS Safari has no Pointer Lock API at all. This used to be a
+   * gate that refused to open the room on a phone; what it decides now is only
+   * which player to mount.
    */
   const walkable = useWalkableSupport();
+  const touch = walkable === "touch";
   const [aim, setAim] = useState<AimTarget | null>(null);
   const [arrived, setArrived] = useState(false);
+
+  /* ---------------------------------------------------------------- quality */
+  /**
+   * Which version of the room gets built, resolved before the canvas mounts.
+   *
+   * The tier is not a rendering detail that can be switched later: it decides
+   * which textures are downloaded, how many maps each material samples and
+   * whether there are lights in the room at all. Changing any of those after
+   * the fact rebuilds every material and recompiles every shader, so the answer
+   * has to be in hand first — which is why this is state and not a ref, and why
+   * nothing is mounted until it is set.
+   *
+   * Two things make it lite: a touch device, and a machine that the power
+   * profile calls low. They are not the same question — a tablet with a
+   * keyboard is a touch device with a real GPU, and a five year old laptop is
+   * neither — but they want the same room.
+   */
+  const profile = usePowerProfile();
+  const applyTier = useTierFromProfile();
+  const [tier, setTier] = useState<"full" | "lite" | null>(null);
+
+  useEffect(() => {
+    if (walkable === "unknown" || profile === "unknown") return;
+    setTier(applyTier(touch || profile === "low"));
+  }, [walkable, profile, touch, applyTier]);
+
+  const quality = useRoomQuality();
+
+  /* ------------------------------------------------------------------ tour */
+  /** Which station the tour is at. Only meaningful on a touch device. */
+  const [station, setStation] = useState(0);
+  /**
+   * Written by TourPlayer every frame and read by the frame loop, which is why
+   * it is a ref: the cadence has to know whether anything is moving without a
+   * re-render per frame telling it.
+   */
+  const tourStatus = useRef<TourStatus>({
+    busy: true,
+    cramped: false,
+    arrived: false,
+  });
+  /**
+   * Whether the current station can show its subject on this screen.
+   *
+   * Computed here rather than read back out of the ref, because it drives a
+   * hint in the HUD and the HUD is React. A 5.14 m painting seen from inside a
+   * 5 m aisle does not fit across a phone held upright, and the only real fix
+   * is to turn the phone — so it says so, once, and does not block anything.
+   */
+  const [cramped, setCramped] = useState(false);
+
+  /**
+   * The frame rate, shown only when asked for with `?fps=1`.
+   *
+   * It is here because it is the one number about this room that cannot be
+   * measured anywhere except on the device itself. A test harness on a desktop
+   * renders the hall in software at whatever rate its timer happens to fire,
+   * which says nothing about a phone — so the phone reports it, and the
+   * question of whether the tour is fast enough gets an answer instead of an
+   * estimate.
+   */
+  const [fps, setFps] = useState(0);
+  const showFps = useMemo(
+    () =>
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).has("fps"),
+    [],
+  );
+
+  useEffect(() => {
+    if (!touch || !open) return;
+    const measure = () => {
+      const aspect = window.innerWidth / Math.max(1, window.innerHeight);
+      const current = STATIONS[station];
+      setCramped(current ? isCramped(current, fovFor(aspect), aspect) : false);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    window.addEventListener("orientationchange", measure);
+    return () => {
+      window.removeEventListener("resize", measure);
+      window.removeEventListener("orientationchange", measure);
+    };
+  }, [touch, open, station]);
 
   /**
    * The room has its own soundtrack: a quiet loop that fades up as soon as
@@ -1638,7 +1759,23 @@ export function WalkableRoom() {
     window.setTimeout(() => setLockReady(true), 1400);
   }, []);
 
+  /**
+   * Take the controls.
+   *
+   * On a pointer device that means asking for the lock, which can fail inside
+   * the browser's cool-down. On a touch device there is nothing to ask for: the
+   * tour needs no capture, so entering is simply a flag — and it still has to
+   * come from a button press, because the arrival flight, the audio and the
+   * first frame all hang off it.
+   */
   const requestLock = useCallback(() => {
+    if (touch) {
+      setStation(0);
+      setArrived(false);
+      introProgress.current = 0;
+      setLocked(true);
+      return;
+    }
     try {
       controls.current?.lock();
     } catch {
@@ -1646,7 +1783,7 @@ export function WalkableRoom() {
       setLockReady(false);
       window.setTimeout(() => setLockReady(true), 1400);
     }
-  }, []);
+  }, [touch]);
 
   // Any element with data-walkable-trigger opens the room — no prop drilling.
   useEffect(() => {
@@ -1654,13 +1791,12 @@ export function WalkableRoom() {
       const target = event.target as HTMLElement | null;
       if (target?.closest("[data-walkable-trigger]")) {
         event.preventDefault();
-        if (walkable === "unsupported") return;
         setOpen(true);
       }
     };
     document.addEventListener("click", onClick);
     return () => document.removeEventListener("click", onClick);
-  }, [walkable]);
+  }, []);
 
   // Freeze the page underneath: Lenis first, then the native scrollbar.
   useEffect(() => {
@@ -1681,8 +1817,38 @@ export function WalkableRoom() {
     setLocked(false);
     setAim(null);
     setArrived(false);
+    setStation(0);
     introProgress.current = 0;
   }, []);
+
+  /**
+   * What aiming at something and then asking for it does.
+   *
+   * Shared by both control schemes, because the answer is the same either way:
+   * a case opens its live site in a new tab, and the contact wall leaves the
+   * room and lands on the contact block of the page. What differs is only what
+   * counts as asking — a left click under pointer lock, a second tap on a touch
+   * device.
+   */
+  const act = useCallback(
+    (target: AimTarget) => {
+      if (target.action === "contact") {
+        close();
+        // Leave the room, then land on the contact block of the page.
+        window.setTimeout(() => {
+          const element = document.getElementById("kontakt");
+          if (!element) return;
+          const top = element.getBoundingClientRect().top + window.scrollY;
+          if (window.__lenis) window.__lenis.scrollTo(top);
+          else window.scrollTo({ top, behavior: "smooth" });
+        }, 320);
+        return;
+      }
+
+      if (target.url) window.open(target.url, "_blank", "noopener,noreferrer");
+    },
+    [close],
+  );
 
   /**
    * Left click while the crosshair sits on a case opens the live site in a new
@@ -1690,28 +1856,48 @@ export function WalkableRoom() {
    * target is meaningless — the aim comes from the centre ray instead.
    */
   useEffect(() => {
-    if (!open || !locked || !aim) return;
-
-    const onClick = () => {
-      if (aim.action === "contact") {
-        close();
-        // Leave the room, then land on the contact block of the page.
-        window.setTimeout(() => {
-          const target = document.getElementById("kontakt");
-          if (!target) return;
-          const top = target.getBoundingClientRect().top + window.scrollY;
-          if (window.__lenis) window.__lenis.scrollTo(top);
-          else window.scrollTo({ top, behavior: "smooth" });
-        }, 320);
-        return;
-      }
-
-      if (aim.url) window.open(aim.url, "_blank", "noopener,noreferrer");
-    };
-
+    if (touch || !open || !locked || !aim) return;
+    const onClick = () => act(aim);
     window.addEventListener("click", onClick);
     return () => window.removeEventListener("click", onClick);
-  }, [open, locked, aim, close]);
+  }, [touch, open, locked, aim, act]);
+
+  /**
+   * A tap landed on something.
+   *
+   * One rule, and it is the one a map has: the first tap takes you there, the
+   * second one opens it. Tapping a picture from four bays away walks the tour
+   * to the station in front of it; tapping it once you are standing there opens
+   * the project. That is both better than opening a link the moment a thumb
+   * brushes a distant wall, and the only version that can work at all — a popup
+   * only counts as user-initiated while the tap that caused it is still on the
+   * stack, which rules out deciding it one render later.
+   */
+  const handlePick = useCallback(
+    (target: AimTarget | null) => {
+      setAim(target);
+      if (!target) return;
+
+      // A skill on a planet is not a link. Looking at it is the interaction,
+      // and the label that just appeared is the whole of the answer.
+      if (target.skill) return;
+
+      const wanted = target.action === "contact"
+        ? STATIONS.findIndex((entry) => entry.kind === "contact")
+        : STATIONS.findIndex(
+            (entry) =>
+              entry.caseIndex !== undefined &&
+              CASES[entry.caseIndex]?.url === target.url,
+          );
+
+      if (wanted >= 0 && wanted !== station) {
+        setStation(wanted);
+        return;
+      }
+      act(target);
+    },
+    [act, station],
+  );
 
   // Esc leaves pointer lock first (browser default), a second Esc leaves the
   // room — so the visitor is never trapped. M mutes the ambience: under
@@ -1733,6 +1919,132 @@ export function WalkableRoom() {
     return () => window.removeEventListener("keydown", onKey);
   }, [open, locked, close, ambience]);
 
+  /* ---- Everything inside the canvas, built once for both schemes.
+         Only the player, the picker and the markers differ; the building, the
+         exhibits and the mechanism are the same room. */
+  const canvas = tier === null ? null : (
+    <Canvas
+      dpr={[1, quality.dprMax]}
+      // "never" hands the render loop to FrameCadence, which caps it and lets
+      // it fall to a heartbeat when the visitor is standing still. On the full
+      // tier the browser keeps driving it as before.
+      frameloop={touch ? "never" : "always"}
+      gl={{ antialias: true, powerPreference: "high-performance" }}
+      camera={{ fov: touch ? fovFor(1) : 62, near: 0.05, far: 140 }}
+      onCreated={({ gl }) => {
+        // AgX, not ACES Filmic. Blender grades under AgX and that is what
+        // every look decision in this room was made against; shipping ACES
+        // meant approving one image and delivering a different one, with
+        // more contrast in the darks than the bake was judged with.
+        gl.toneMapping = THREE.AgXToneMapping;
+        gl.toneMappingExposure = 1.15;
+      }}
+    >
+      <color attach="background" args={["#070a10"]} />
+      {/* Only the far end softens. The hall is 40 m long and the
+          bake already darkens with distance, so fog starting at
+          16 m used to sit on top of that and grey out the middle
+          of the room as well. */}
+      <fog attach="fog" args={["#070a10", 30, 96]} />
+
+      {/*
+        There is no room lighting here any more, and that is the
+        point: every bounce, every shadow and the whole cove wash
+        are in the lightmap. An ambient light and a row of ceiling
+        sources on top of that do not add to it, they flatten it —
+        the bake's darks get a floor under them and the hall turns
+        into the grey box it was.
+
+        What is left is the environment below, which does the one
+        job a diffuse lightmap cannot: the specular sheen on the
+        marble, and a soft fill for everything that is not baked —
+        the benches, the plinth, the planting, the doors.
+      */}
+      {/*
+        Everything that loads a file sits inside this boundary, and
+        it has to be inside the Canvas.
+
+        It used to hold only <Exhibits>, because the room was built
+        out of primitives and nothing else suspended. The hall comes
+        out of a glTF now, so RoomShell suspends too — and a
+        component that suspends with no boundary under the Canvas
+        takes the Canvas down with it. React unmounts the subtree,
+        R3F's teardown calls forceContextLoss() on the way out, and
+        the canvas element never gets a second context: a black
+        screen, no error in the console, and a WebGL context that
+        reports itself lost about a second after it was created.
+
+        Player stays outside so pointer lock and the look controls
+        survive the load.
+      */}
+      <Suspense fallback={null}>
+        <RoomShell />
+        <HallMotion />
+        <EntryGate progress={introProgress} />
+        <HiddenWall />
+        <MarkPlinth />
+        <TeamExhibits aim={aim} />
+        <Exhibits />
+        <HallEnvironment />
+        <RoomProbe />
+        <HallEnvironmentBinding />
+
+        {/*
+          The tour's two pieces belong inside the boundary, unlike Player
+          outside it, and for the same reason Player is outside: both read the
+          hall, and reading the hall is what suspends.
+
+          Player does not — it only moves a camera — so it can sit outside and
+          keep pointer lock alive across the load. The tour has no lock to keep
+          alive, and it needs the hanging anchors to know where its picture
+          stations are, so it waits with everything else. A component that
+          suspends with no boundary above it takes the whole Canvas down.
+        */}
+        {touch && (
+          <>
+            <StationMarkers index={station} visible={arrived} />
+            <TourPlayer
+              index={station}
+              started={locked}
+              progress={introProgress}
+              status={tourStatus}
+              onStation={setStation}
+              onPick={handlePick}
+              onArrived={() => setArrived(true)}
+            />
+          </>
+        )}
+      </Suspense>
+
+      {quality.tier === "lite" && <LiteFill />}
+
+      {/*
+        Outside, and it has to be: with frameloop="never" this is the only
+        thing that draws a frame, including the frames during the load and the
+        one right after the boundary resolves. Inside, it would be suspended
+        along with everything else and the room would never appear.
+      */}
+      {touch && (
+        <FrameCadence status={tourStatus} onRate={showFps ? setFps : undefined} />
+      )}
+
+      {!touch && (
+        <>
+          <GazePicker onAim={setAim} />
+          <Player
+            controls={controls}
+            progress={introProgress}
+            started={locked}
+            onLockChange={handleLockChange}
+            onArrived={() => setArrived(true)}
+          />
+        </>
+      )}
+    </Canvas>
+  );
+
+  const current = STATIONS[station];
+
   return (
     <AnimatePresence>
       {open && (
@@ -1750,152 +2062,74 @@ export function WalkableRoom() {
             // arrow parked over a dark hall reads as a broken page. Unlocked,
             // the cursor has to come back: that is when the gate's buttons are
             // the only way out.
-            locked ? "cursor-none" : "",
+            locked && !touch ? "cursor-none" : "",
+            // A drag across the canvas is the look control, so the browser must
+            // not also read it as a scroll or a pull-to-refresh.
+            touch ? "touch-none select-none overscroll-none" : "",
           ].join(" ")}
           role="dialog"
           aria-modal="true"
           aria-label="Begehbarer 3D-Raum"
         >
-          {walkable === "unsupported" ? (
-            <div className="flex h-full flex-col items-center justify-center gap-6 px-8 text-center">
-              <p className="tag">EXPERIMENTAL / DESKTOP</p>
-              <p className="max-w-[34ch] text-lg leading-snug">
-                Der begehbare Raum braucht Maus und Tastatur: das Umsehen
-                läuft über die Pointer-Lock-API, die es auf dem Handy nicht
-                gibt. Auf dem Desktop öffnet er sich in voller Auflösung.
-              </p>
-              <button
-                type="button"
-                onClick={close}
-                className="rounded-full border border-line px-6 py-3 text-[13px]"
-              >
-                Zurück zur Seite
-              </button>
+          {/* The keyboard provider only where there is a keyboard. Player
+              reads its state through useKeyboardControls and is not mounted on
+              a touch device at all, so wrapping the tour in it would add a
+              window listener for keys nobody can press. */}
+          {touch ? canvas : <KeyboardControls map={KEY_MAP}>{canvas}</KeyboardControls>}
+
+          {/* HUD */}
+          <div className="pointer-events-none absolute inset-0 z-10">
+            <div className="absolute left-6 top-6 flex items-center gap-3">
+              <span className="tag text-frost">MAGNARIS / SPACE</span>
+              <span className="hidden h-px w-8 bg-line sm:block" />
+              <span className="tag hidden sm:inline">
+                {touch ? "TOUR · BUILD 0.4" : "WALKABLE ROOM · BUILD 0.4"}
+              </span>
             </div>
-          ) : (
-            <>
-              <KeyboardControls map={KEY_MAP}>
-                <Canvas
-                  dpr={[1, 1.75]}
-                  gl={{ antialias: true, powerPreference: "high-performance" }}
-                  camera={{ fov: 62, near: 0.05, far: 140 }}
-                  onCreated={({ gl }) => {
-                    // AgX, not ACES Filmic. Blender grades under AgX and that is what
-                    // every look decision in this room was made against; shipping ACES
-                    // meant approving one image and delivering a different one, with
-                    // more contrast in the darks than the bake was judged with.
-                    gl.toneMapping = THREE.AgXToneMapping;
-                    gl.toneMappingExposure = 1.15;
-                  }}
+
+            {ambience.available && (
+              <div className="pointer-events-auto absolute right-6 top-6 flex items-center gap-3 rounded-full border border-line bg-ink-900/70 px-4 py-2 backdrop-blur-sm">
+                <button
+                  type="button"
+                  onClick={ambience.toggle}
+                  className="tag flex items-center gap-2 transition-colors hover:text-frost"
+                  aria-pressed={ambience.enabled}
+                  aria-label={ambience.enabled ? "Ton aus" : "Ton an"}
                 >
-                  <color attach="background" args={["#070a10"]} />
-                  {/* Only the far end softens. The hall is 40 m long and the
-                      bake already darkens with distance, so fog starting at
-                      16 m used to sit on top of that and grey out the middle
-                      of the room as well. */}
-                  <fog attach="fog" args={["#070a10", 30, 96]} />
+                  {/* Three bars that collapse to one when the loop is off —
+                      a level meter reads faster than a speaker glyph. */}
+                  <span className="flex h-3 items-end gap-[3px]" aria-hidden>
+                    <span
+                      className={[
+                        "w-[2px] bg-current transition-all duration-300",
+                        ambience.enabled ? "h-1.5" : "h-[2px]",
+                      ].join(" ")}
+                    />
+                    <span
+                      className={[
+                        "w-[2px] bg-current transition-all duration-300",
+                        ambience.enabled ? "h-3" : "h-[2px]",
+                      ].join(" ")}
+                    />
+                    <span
+                      className={[
+                        "w-[2px] bg-current transition-all duration-300",
+                        ambience.enabled ? "h-2" : "h-[2px]",
+                      ].join(" ")}
+                    />
+                  </span>
+                  <span className={touch ? "sr-only" : undefined}>
+                    {ambience.enabled ? "Ton an" : "Ton aus"}
+                  </span>
+                </button>
 
-                  {/*
-                    There is no room lighting here any more, and that is the
-                    point: every bounce, every shadow and the whole cove wash
-                    are in the lightmap. An ambient light and a row of ceiling
-                    sources on top of that do not add to it, they flatten it —
-                    the bake's darks get a floor under them and the hall turns
-                    into the grey box it was.
-
-                    What is left is the environment below, which does the one
-                    job a diffuse lightmap cannot: the specular sheen on the
-                    marble, and a soft fill for everything that is not baked —
-                    the benches, the plinth, the planting, the doors.
-                  */}
-                  {/*
-                    Everything that loads a file sits inside this boundary, and
-                    it has to be inside the Canvas.
-
-                    It used to hold only <Exhibits>, because the room was built
-                    out of primitives and nothing else suspended. The hall comes
-                    out of a glTF now, so RoomShell suspends too — and a
-                    component that suspends with no boundary under the Canvas
-                    takes the Canvas down with it. React unmounts the subtree,
-                    R3F's teardown calls forceContextLoss() on the way out, and
-                    the canvas element never gets a second context: a black
-                    screen, no error in the console, and a WebGL context that
-                    reports itself lost about a second after it was created.
-
-                    Player stays outside so pointer lock and the look controls
-                    survive the load.
-                  */}
-                  <Suspense fallback={null}>
-                    <RoomShell />
-          <HallMotion />
-                    <EntryGate progress={introProgress} />
-                    <HiddenWall />
-                    <MarkPlinth />
-                    <TeamExhibits aim={aim} />
-                    <Exhibits />
-                    <HallEnvironment />
-                    <RoomProbe />
-                  </Suspense>
-
-                  <GazePicker onAim={setAim} />
-
-                  <Player
-                    controls={controls}
-                    progress={introProgress}
-                    started={locked}
-                    onLockChange={handleLockChange}
-                    onArrived={() => setArrived(true)}
-                  />
-                </Canvas>
-              </KeyboardControls>
-
-              {/* HUD */}
-              <div className="pointer-events-none absolute inset-0 z-10">
-                <div className="absolute left-6 top-6 flex items-center gap-3">
-                  <span className="tag text-frost">MAGNARIS / SPACE</span>
-                  <span className="h-px w-8 bg-line" />
-                  <span className="tag">WALKABLE ROOM · BUILD 0.3</span>
-                </div>
-
-                {ambience.available && (
-                  <div className="pointer-events-auto absolute right-6 top-6 flex items-center gap-3 rounded-full border border-line bg-ink-900/70 px-4 py-2 backdrop-blur-sm">
-                    <button
-                      type="button"
-                      onClick={ambience.toggle}
-                      className="tag flex items-center gap-2 transition-colors hover:text-frost"
-                      aria-pressed={ambience.enabled}
-                      aria-label={ambience.enabled ? "Ton aus" : "Ton an"}
-                    >
-                      {/* Three bars that collapse to one when the loop is off —
-                          a level meter reads faster than a speaker glyph. */}
-                      <span className="flex h-3 items-end gap-[3px]" aria-hidden>
-                        <span
-                          className={[
-                            "w-[2px] bg-current transition-all duration-300",
-                            ambience.enabled ? "h-1.5" : "h-[2px]",
-                          ].join(" ")}
-                        />
-                        <span
-                          className={[
-                            "w-[2px] bg-current transition-all duration-300",
-                            ambience.enabled ? "h-3" : "h-[2px]",
-                          ].join(" ")}
-                        />
-                        <span
-                          className={[
-                            "w-[2px] bg-current transition-all duration-300",
-                            ambience.enabled ? "h-2" : "h-[2px]",
-                          ].join(" ")}
-                        />
-                      </span>
-                      {ambience.enabled ? "Ton an" : "Ton aus"}
-                    </button>
-
+                {/* The slider is a pointer control: under pointer lock the
+                    cursor is gone and +/- does the same job, and on a phone it
+                    would sit in the corner a thumb reaches for when it means to
+                    drag the view. */}
+                {!touch && (
+                  <>
                     <span className="h-4 w-px bg-line" />
-
-                    {/* Pointer lock hides the cursor, so this slider only
-                        serves the entry gate; inside the room +/- does the
-                        same job and the readout keeps both in sync. */}
                     <input
                       type="range"
                       min={0}
@@ -1911,100 +2145,177 @@ export function WalkableRoom() {
                     <span className="tag w-9 text-right tabular-nums text-frost">
                       {ambience.enabled ? Math.round(ambience.level * 100) : 0}%
                     </span>
-                  </div>
+                  </>
                 )}
+              </div>
+            )}
 
-                {locked && !arrived && (
-                  <span className="absolute left-1/2 top-[58%] -translate-x-1/2 font-mono text-[11px] uppercase tracking-[0.3em] text-frost/70">
-                    Anflug
+            {locked && !arrived && (
+              <span className="absolute left-1/2 top-[58%] -translate-x-1/2 font-mono text-[11px] uppercase tracking-[0.3em] text-frost/70">
+                Anflug
+              </span>
+            )}
+
+            {showFps && touch && (
+              <span className="absolute left-6 top-14 rounded-full border border-line bg-ink-900/80 px-3 py-1 font-mono text-[11px] tabular-nums text-frost backdrop-blur-sm">
+                {fps} fps · {quality.tier} · dpr {quality.dprMax}
+              </span>
+            )}
+
+            {/* ---- The crosshair, which only a pointer device has. A tap
+                    aims itself, so a mark in the middle of a phone screen
+                    would name something the thumb is not pointing at. */}
+            {locked && arrived && !touch && (
+              <>
+                <span
+                  className={[
+                    "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-300",
+                    aim
+                      ? "h-5 w-5 border-frost shadow-[0_0_0_1px_rgba(11,15,24,0.55)]"
+                      : "h-3 w-3 border-teal/70 shadow-[0_0_0_1px_rgba(11,15,24,0.55)]",
+                  ].join(" ")}
+                />
+
+                {aim && (
+                  <span className="absolute left-1/2 top-1/2 mt-8 -translate-x-1/2 whitespace-nowrap rounded-full border border-line bg-ink-900/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-frost backdrop-blur-sm">
+                    {aim.action === "contact"
+                      ? "Linksklick — Kontakt aufnehmen"
+                      : aim.skill
+                        ? aim.label
+                        : `Linksklick — ${aim.label} öffnen ↗`}
+                  </span>
+                )}
+              </>
+            )}
+
+            {/* ---- What the tour shows instead: where you are, what you last
+                    tapped, and the two buttons that move you. */}
+            {touch && locked && arrived && current && (
+              <>
+                {aim && (
+                  <span className="absolute left-1/2 top-[14%] -translate-x-1/2 whitespace-nowrap rounded-full border border-line bg-ink-900/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-frost backdrop-blur-sm">
+                    {aim.skill ? aim.label : `${aim.label} — nochmal tippen ↗`}
                   </span>
                 )}
 
-                {locked && arrived && (
-                  <>
-                    <span
-                      className={[
-                        "absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 rounded-full border transition-all duration-300",
-                        aim
-                          ? "h-5 w-5 border-frost shadow-[0_0_0_1px_rgba(11,15,24,0.55)]"
-                          : "h-3 w-3 border-teal/70 shadow-[0_0_0_1px_rgba(11,15,24,0.55)]",
-                      ].join(" ")}
-                    />
-
-                    {aim && (
-                      <span className="absolute left-1/2 top-1/2 mt-8 -translate-x-1/2 whitespace-nowrap rounded-full border border-line bg-ink-900/80 px-4 py-2 font-mono text-[11px] uppercase tracking-[0.16em] text-frost backdrop-blur-sm">
-                        {aim.action === "contact"
-                          ? "Linksklick — Kontakt aufnehmen"
-                          : aim.skill
-                            ? aim.label
-                            : `Linksklick — ${aim.label} öffnen ↗`}
-                      </span>
-                    )}
-                  </>
+                {cramped && (
+                  <span className="absolute left-1/2 top-[22%] -translate-x-1/2 whitespace-nowrap rounded-full border border-line/60 bg-ink-900/70 px-4 py-2 font-mono text-[10px] uppercase tracking-[0.16em] text-steel backdrop-blur-sm">
+                    Quer halten zeigt mehr
+                  </span>
                 )}
 
-                <div className="absolute bottom-6 left-6 flex flex-wrap gap-x-6 gap-y-2">
-                  {[
-                    ["W A S D", "Bewegen"],
-                    ["MAUS", "Umsehen"],
-                    ["SHIFT", "Sprint"],
-                    ["KLICK", "Case öffnen"],
-                    ["M", "Ton an/aus"],
-                    ["+ / −", "Lautstärke"],
-                    ["ESC", "Verlassen"],
-                  ].map(([key, label]) => (
-                    <span key={key} className="tag flex items-center gap-2">
-                      <kbd className="rounded border border-line px-2 py-1 text-frost">
-                        {key}
-                      </kbd>
-                      {label}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              {/* Entry gate — pointer lock must start from a user gesture. */}
-              <AnimatePresence>
-                {!locked && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    exit={{ opacity: 0 }}
-                    transition={{ duration: 0.4 }}
-                    className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-8 bg-ink-900/70 backdrop-blur-sm"
+                <div className="pointer-events-auto absolute inset-x-0 bottom-0 flex items-end justify-between gap-3 p-5 pb-7">
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setStation((i) => (i - 1 + STATIONS.length) % STATIONS.length)
+                    }
+                    aria-label="Vorherige Station"
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-ink-900/80 text-lg text-frost backdrop-blur-sm active:bg-ink-900"
                   >
-                    <div className="text-center">
-                      <p className="tag">02 / SPACE</p>
-                      <h2 className="mt-4 text-headline font-semibold uppercase">
-                        Betritt den Raum
-                      </h2>
-                      <p className="mx-auto mt-4 max-w-[42ch] text-sm text-steel">
-                        Klicken sperrt den Mauszeiger. Mit W A S D bewegst du
-                        dich, Escape bringt dich zurück auf die Seite.
-                      </p>
-                    </div>
+                    ‹
+                  </button>
 
-                    <button
-                      type="button"
-                      onClick={requestLock}
-                      disabled={!lockReady}
-                      className="rounded-full bg-frost px-8 py-4 text-[13px] font-medium text-ink transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-45 disabled:hover:translate-y-0"
-                    >
-                      {lockReady ? "Mauszeiger sperren" : "Einen Moment …"}
-                    </button>
+                  <div className="min-w-0 flex-1 rounded-2xl border border-line bg-ink-900/80 px-4 py-3 text-center backdrop-blur-sm">
+                    <p className="tag text-[9px] text-steel">
+                      {String(station + 1).padStart(2, "0")} / {STATIONS.length}
+                    </p>
+                    <p className="truncate text-[13px] text-frost">
+                      {current.label}
+                    </p>
+                  </div>
 
-                    <button
-                      type="button"
-                      onClick={close}
-                      className="tag transition-colors hover:text-frost"
-                    >
-                      Abbrechen
-                    </button>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </>
-          )}
+                  <button
+                    type="button"
+                    onClick={() => setStation((i) => (i + 1) % STATIONS.length)}
+                    aria-label="Nächste Station"
+                    className="flex h-14 w-14 shrink-0 items-center justify-center rounded-full border border-line bg-ink-900/80 text-lg text-frost backdrop-blur-sm active:bg-ink-900"
+                  >
+                    ›
+                  </button>
+                </div>
+
+                {/* No Escape key on a phone, so the way out has to be visible.
+                    Top right under the sound control, where a close button is. */}
+                <button
+                  type="button"
+                  onClick={close}
+                  className="pointer-events-auto absolute right-6 top-[4.5rem] rounded-full border border-line bg-ink-900/80 px-4 py-2 text-[11px] uppercase tracking-[0.16em] text-frost backdrop-blur-sm"
+                >
+                  Verlassen
+                </button>
+              </>
+            )}
+
+            {/* ---- The key legend, which is only true with a keyboard. */}
+            {!touch && (
+              <div className="absolute bottom-6 left-6 flex flex-wrap gap-x-6 gap-y-2">
+                {[
+                  ["W A S D", "Bewegen"],
+                  ["MAUS", "Umsehen"],
+                  ["SHIFT", "Sprint"],
+                  ["KLICK", "Case öffnen"],
+                  ["M", "Ton an/aus"],
+                  ["+ / −", "Lautstärke"],
+                  ["ESC", "Verlassen"],
+                ].map(([key, label]) => (
+                  <span key={key} className="tag flex items-center gap-2">
+                    <kbd className="rounded border border-line px-2 py-1 text-frost">
+                      {key}
+                    </kbd>
+                    {label}
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Entry gate — pointer lock must start from a user gesture, and the
+              tour needs one too for the audio and the arrival. */}
+          <AnimatePresence>
+            {!locked && (
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.4 }}
+                className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-8 bg-ink-900/70 px-6 backdrop-blur-sm"
+              >
+                <div className="text-center">
+                  <p className="tag">02 / SPACE</p>
+                  <h2 className="mt-4 text-headline font-semibold uppercase">
+                    Betritt den Raum
+                  </h2>
+                  <p className="mx-auto mt-4 max-w-[42ch] text-sm text-steel">
+                    {touch
+                      ? "Ziehen sieht sich um, Tippen auf einen Ring am Boden stellt dich woanders hin. Die Pfeile unten führen durch die Halle."
+                      : "Klicken sperrt den Mauszeiger. Mit W A S D bewegst du dich, Escape bringt dich zurück auf die Seite."}
+                  </p>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={requestLock}
+                  disabled={!touch && !lockReady}
+                  className="rounded-full bg-frost px-8 py-4 text-[13px] font-medium text-ink transition-all duration-500 ease-[cubic-bezier(0.16,1,0.3,1)] hover:-translate-y-0.5 disabled:cursor-wait disabled:opacity-45 disabled:hover:translate-y-0"
+                >
+                  {touch
+                    ? "Tour starten"
+                    : lockReady
+                      ? "Mauszeiger sperren"
+                      : "Einen Moment …"}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={close}
+                  className="tag transition-colors hover:text-frost"
+                >
+                  Abbrechen
+                </button>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </motion.div>
       )}
     </AnimatePresence>

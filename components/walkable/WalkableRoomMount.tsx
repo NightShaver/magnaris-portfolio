@@ -21,13 +21,16 @@ export function WalkableRoomMount() {
   const walkable = useWalkableSupport();
 
   /**
-   * A phone cannot enter the room — there is no Pointer Lock API to look
-   * around with — so it must not pay for the bundle either. The chunk is
-   * fetched when this renders, which is why the check sits here and not
-   * inside the room: several hundred kilobytes of geometry, materials and
-   * controls that would only ever be parsed and thrown away.
+   * Nothing until the device has been asked what it is.
+   *
+   * This used to be a gate: a phone had no way to look around and therefore no
+   * business downloading the room. It has one now — a tour of standing points
+   * instead of a walk — so both answers mount, and what is still worth waiting
+   * for is the answer itself. The chunk is fetched the moment this renders, and
+   * several hundred kilobytes of geometry and controls should not be fetched on
+   * a guess that the first effect is about to correct.
    */
-  if (walkable !== "supported") return null;
+  if (walkable === "unknown") return null;
 
   return <WalkableRoom />;
 }

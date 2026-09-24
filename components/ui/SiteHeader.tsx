@@ -84,11 +84,14 @@ export function SiteHeader() {
 
         <div className="flex items-center gap-5">
           <span className="tag hidden lg:inline">DE / {time} MEZ</span>
-          {walkable !== "unsupported" && (
+          {/* Shown on every device that has answered. The room used to be
+              desktop only; it has a touch tour now, so the only reason left to
+              hold this back is not yet knowing which of the two to open. */}
+          {walkable !== "unknown" && (
             <button
               type="button"
               data-walkable-trigger
-              className="tag hidden transition-colors hover:text-violet md:inline"
+              className="tag transition-colors hover:text-violet"
             >
               Raum
             </button>
